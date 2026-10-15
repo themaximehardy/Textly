@@ -1,5 +1,9 @@
 # Textly
 
+<p align="center"><img src="docs/images/hero.png" alt="Textly: write it once, let your Mac fix the rest" width="800"></p>
+
+<p align="center"><a href="https://github.com/themaximehardy/Textly/releases/latest"><b>Download for macOS</b></a> · macOS 14+ · Free and open source</p>
+
 **Fix, improve, summarise and translate any text on your Mac.** Select text in any app, press a shortcut, pick an action. The result replaces your selection, or shows up first so you can check it.
 
 Textly lives in the menu bar, uses [OpenRouter](https://openrouter.ai) with your own API key (so you choose the model and pay only for what you use), and is open source.
@@ -11,6 +15,8 @@ Textly lives in the menu bar, uses [OpenRouter](https://openrouter.ai) with your
 - Every prompt is editable. Pick any model on OpenRouter, globally or per action
 - Two palette styles: a compact **command list**, or **preview before replacing** with changes highlighted
 - No account, no telemetry. Your text goes only to OpenRouter
+
+<p align="center"><img src="docs/images/before-after.png" alt="Fix, translate and shorten the same sentence" width="800"></p>
 
 The default prompts are tuned for people who write in French and English and mix the two (Franglais). Change the shared rules in Settings to match how you write.
 
@@ -54,6 +60,18 @@ The default prompts are tuned for people who write in French and English and mix
 
 Every action can have its own shortcut (Settings › Actions). Actions are also in the menu bar icon.
 
+<p align="center"><img src="docs/images/palette.png" alt="The palette next to selected text in an email" width="800"></p>
+
+**Translate to any language.** Pinned languages get their own letter. Press **T** and type any other language, even "Spanish (Mexico)" or "formal German".
+
+<p align="center"><img src="docs/images/translate.png" alt="Translate to any language" width="800"></p>
+
+**Preview before replacing.** Prefer to check first? Switch the palette style in Settings › General: every result appears with the changes highlighted.
+
+<p align="center"><img src="docs/images/preview.png" alt="Preview with changes highlighted" width="800"></p>
+
+<p align="center"><img src="docs/images/menubar.png" alt="Every action is also in the menu bar" width="800"></p>
+
 ## Customise
 
 **Settings › Actions**: add, edit, reorder or delete actions. Each action has:
@@ -66,6 +84,12 @@ Every action can have its own shortcut (Settings › Actions). Actions are also 
 **Settings › Rules & Glossary**:
 - *Shared rules* are added to every action: tone, spelling (e.g. British English), punctuation habits.
 - *Glossary*: one term per line. `wrong → right` always corrects a spelling.
+
+<p align="center"><img src="docs/images/settings.png" alt="Settings: edit any action and its instructions" width="800"></p>
+
+**Settings › Usage**: see what you've spent today, this week and this month (exact costs from OpenRouter), and estimate your monthly cost from how often you use it.
+
+<p align="center"><img src="docs/images/usage.png" alt="Usage and cost estimator" width="600"></p>
 
 Settings are stored in `~/Library/Application Support/Textly/settings.json`. The API key is stored in your Keychain.
 

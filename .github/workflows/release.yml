@@ -1,11 +1,17 @@
 name: Release
 
-# Push a tag like v0.3.0 to build the DMG and publish a GitHub release.
-# "Run workflow" (manual) builds the DMG and attaches it to the run, without publishing.
+# Push a tag like v0.4.0 to build the DMG and publish a GitHub release.
+# Or: Actions > Release > Run workflow. With a tag (e.g. v0.3.0) the DMG is attached to that existing release;
+# without one, the DMG is only kept with the run.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Attach the DMG to this release tag (e.g. v0.3.0). Leave empty to only build."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -13,8 +19,10 @@ permissions:
 jobs:
   dmg:
     runs-on: macos-latest
+    env:
+      TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Use the newest stable Xcode
         run: |
@@ -32,9 +40,9 @@ jobs:
           path: dist/*.dmg
 
       - name: Release notes from CHANGELOG.md
-        if: startsWith(github.ref, 'refs/tags/')
+        if: env.TAG != ''
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${TAG#v}"
           awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
           cat >> notes.md <<'NOTES'
 
@@ -45,8 +53,9 @@ jobs:
           NOTES
 
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: env.TAG != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.TAG }}
           files: dist/*.dmg
           body_path: notes.md
