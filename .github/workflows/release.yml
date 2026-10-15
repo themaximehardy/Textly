@@ -1,0 +1,52 @@
+name: Release
+
+# Push a tag like v0.3.0 to build the DMG and publish a GitHub release.
+# "Run workflow" (manual) builds the DMG and attaches it to the run, without publishing.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest stable Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Build DMG
+        run: scripts/make-dmg.sh
+
+      - name: Keep the DMG with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: Textly-dmg
+          path: dist/*.dmg
+
+      - name: Release notes from CHANGELOG.md
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
+          cat >> notes.md <<'NOTES'
+
+          ### Install
+          1. Download **Textly-*.dmg** below, open it and drag Textly to Applications.
+          2. Open Textly. macOS says it can't verify the app (it isn't notarised yet): click **Done**, then **System Settings › Privacy & Security › Open Anyway**. Only the first time.
+          3. Follow the setup window: OpenRouter API key, then Accessibility permission.
+          NOTES
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.dmg
+          body_path: notes.md
