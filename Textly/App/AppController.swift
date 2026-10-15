@@ -18,6 +18,9 @@ final class AppController: NSObject, NSMenuDelegate {
     private var capture: CapturedSelection?
     private var currentTask: Task<Void, Never>?
     private var lastRun: (action: TextAction, language: String?)?
+    /// Bumped for every run (and cancel), so late streaming updates from an old run are ignored.
+    private var runID = 0
+    private var relay: StreamRelay?
     private var cancellables = Set<AnyCancellable>()
     private var anchorPoint: NSPoint = .zero
     private var anchorRect: NSRect = .zero
@@ -40,6 +43,22 @@ final class AppController: NSObject, NSMenuDelegate {
         setupStatusItem()
         wirePalette()
         registerHotkeys()
+        ServicesProvider.shared.install()
+
+        HistoryStore.shared.setPersistent(store.settings.keepHistory)
+        store.$settings
+            .map(\.keepHistory)
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { keep in
+                MainActor.assumeIsolated { HistoryStore.shared.setPersistent(keep) }
+            }
+            .store(in: &cancellables)
+
+        UpdateChecker.shared.start { [weak self] in
+            self?.store.settings.checkForUpdates ?? false
+        }
 
         store.$settings
             .map(\.hotkeyBindings)
@@ -69,7 +88,8 @@ final class AppController: NSObject, NSMenuDelegate {
             }
         }
 
-        if !store.settings.hasCompletedOnboarding || !store.hasAPIKey || !Permissions.isTrusted {
+        let needsKey = store.settings.provider == .openRouter && !store.hasAPIKey
+        if !store.settings.hasCompletedOnboarding || needsKey || !Permissions.isTrusted {
             OnboardingWindowController.shared.show()
         }
     }
@@ -129,10 +149,98 @@ final class AppController: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
+        menu.addItem(historyMenuItem())
+        menu.addItem(.separator())
         menu.addItem(menuItem("Settings…", #selector(openSettings), key: ","))
         menu.addItem(menuItem("Setup guide…", #selector(openOnboarding)))
+        menu.addItem(menuItem("Check for Updates…", #selector(checkForUpdates)))
         menu.addItem(.separator())
         menu.addItem(menuItem("Quit Textly", #selector(quit), key: "q"))
+    }
+
+    // MARK: History menu
+
+    private func historyMenuItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "Recent Results", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: nil)
+        let submenu = NSMenu()
+        let entries = HistoryStore.shared.entries
+        if entries.isEmpty {
+            let empty = NSMenuItem(title: "No results yet", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            submenu.addItem(empty)
+        }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        for entry in entries {
+            let row = NSMenuItem(title: "\(entry.title): \(Self.snippet(entry.result))", action: nil, keyEquivalent: "")
+            let actions = NSMenu()
+            let when = formatter.localizedString(for: entry.date, relativeTo: Date())
+            let header = NSMenuItem(title: [entry.appName, when].compactMap { $0 }.joined(separator: " · "), action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            actions.addItem(header)
+            actions.addItem(.separator())
+            for (title, selector) in [
+                ("Paste Result", #selector(pasteHistoryResult(_:))),
+                ("Copy Result", #selector(copyHistoryResult(_:))),
+                ("Copy Original", #selector(copyHistoryOriginal(_:))),
+            ] {
+                let action = menuItem(title, selector)
+                action.representedObject = entry.id
+                actions.addItem(action)
+            }
+            row.submenu = actions
+            submenu.addItem(row)
+        }
+        if !entries.isEmpty {
+            submenu.addItem(.separator())
+            submenu.addItem(menuItem("Clear History", #selector(clearHistory)))
+        }
+        item.submenu = submenu
+        return item
+    }
+
+    private static func snippet(_ text: String) -> String {
+        let line = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? text
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        return trimmed.count > 42 ? String(trimmed.prefix(40)) + "…" : trimmed
+    }
+
+    private func historyEntry(_ sender: NSMenuItem) -> HistoryEntry? {
+        guard let id = sender.representedObject as? UUID else { return nil }
+        return HistoryStore.shared.entries.first { $0.id == id }
+    }
+
+    @objc func pasteHistoryResult(_ sender: NSMenuItem) {
+        guard let entry = historyEntry(sender) else { return }
+        Task {
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            await SelectionService.replace(with: entry.result, target: nil)
+        }
+    }
+
+    @objc func copyHistoryResult(_ sender: NSMenuItem) {
+        guard let entry = historyEntry(sender) else { return }
+        copyToClipboard(entry.result)
+    }
+
+    @objc func copyHistoryOriginal(_ sender: NSMenuItem) {
+        guard let entry = historyEntry(sender) else { return }
+        copyToClipboard(entry.original)
+    }
+
+    @objc func clearHistory() {
+        HistoryStore.shared.clear()
+    }
+
+    @objc func checkForUpdates() {
+        Task { await UpdateChecker.shared.check(userInitiated: true) }
+    }
+
+    private func copyToClipboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        Toast.shared.show("Copied", icon: "doc.on.doc")
     }
 
     private func menuItem(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
@@ -200,14 +308,19 @@ final class AppController: NSObject, NSMenuDelegate {
 
     // MARK: - Entry points
 
-    /// Shortcut or menu: grab the selection and show the palette next to it.
-    func openPalette(startInLanguages: Bool = false) async {
+    /// Shortcut, menu or Services: grab the selection and show the palette next to it.
+    /// `preset` is text macOS already handed over (Services), so there's nothing to capture.
+    func openPalette(startInLanguages: Bool = false, preset: CapturedSelection? = nil) async {
         if panel?.isVisible == true {
             cancelAndClose()
-            return
+            if preset == nil { return }
         }
         guard ensureReady() else { return }
-        guard let selection = await SelectionService.capture() else {
+        var captured = preset
+        if captured == nil {
+            captured = await SelectionService.capture()
+        }
+        guard let selection = captured else {
             Toast.shared.show("Select some text first", icon: "text.cursor")
             return
         }
@@ -218,14 +331,18 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     /// An action's own shortcut (or the menu bar): run it straight away.
-    func runDirect(_ action: TextAction, language: String?) async {
+    func runDirect(_ action: TextAction, language: String?, preset: CapturedSelection? = nil) async {
         if action.isTranslate && language == nil {
-            await openPalette(startInLanguages: true)
+            await openPalette(startInLanguages: true, preset: preset)
             return
         }
         guard ensureReady() else { return }
         closePalette()
-        guard let selection = await SelectionService.capture() else {
+        var captured = preset
+        if captured == nil {
+            captured = await SelectionService.capture()
+        }
+        guard let selection = captured else {
             Toast.shared.show("Select some text first", icon: "text.cursor")
             return
         }
@@ -235,10 +352,19 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     private func ensureReady() -> Bool {
-        if !store.hasAPIKey {
-            Toast.shared.show("Add your OpenRouter API key first", icon: "key")
-            OnboardingWindowController.shared.show()
-            return false
+        switch store.settings.provider {
+        case .openRouter:
+            if !store.hasAPIKey {
+                Toast.shared.show("Add your OpenRouter API key first", icon: "key")
+                OnboardingWindowController.shared.show()
+                return false
+            }
+        case .local:
+            if store.settings.localModel.trimmingCharacters(in: .whitespaces).isEmpty {
+                Toast.shared.show("Choose a local model in Settings", icon: "desktopcomputer")
+                SettingsWindowController.shared.show()
+                return false
+            }
         }
         if !Permissions.isTrusted {
             Toast.shared.show("Textly needs Accessibility permission", icon: "lock")
@@ -253,65 +379,58 @@ final class AppController: NSObject, NSMenuDelegate {
     private func execute(_ action: TextAction, language: String?) {
         guard let capture else { return }
         let settings = store.settings
+        let prepared: PreparedRun
+        do {
+            prepared = try ActionRunner.prepare(action: action, language: language, text: capture.text, settings: settings, apiKey: store.apiKey)
+        } catch {
+            fail(error.localizedDescription)
+            return
+        }
         let replaceDirectly = settings.paletteStyle == .list && action.output == .replace
-        let title = language.map { "Translate to \($0)" } ?? action.name
         if let language { store.noteRecent(language) }
         lastRun = (action, language)
         currentTask?.cancel()
+        relay?.stop()
+        runID += 1
+        let id = runID
 
         if !replaceDirectly && panel?.isVisible != true {
             showPanel()
         }
         if panel?.isVisible == true {
-            palette.startWorking(title: title)
+            palette.startWorking(title: prepared.title)
         } else {
-            Toast.shared.show("\(title)…", spinning: true, duration: nil)
+            Toast.shared.show("\(prepared.title)…", spinning: true, duration: nil)
             HotkeyCenter.shared.setEscapeHandler { [weak self] in self?.cancelRun() }
         }
         setBusy(true)
 
-        let parts = TextCleanup.split(capture.text)
-        let prompt = PromptBuilder.messages(for: action, language: language, text: parts.core, settings: settings)
-        let chosenModel = action.model.trimmingCharacters(in: .whitespaces)
-        let request = CompletionRequest(
-            apiKey: store.apiKey,
-            model: chosenModel.isEmpty ? settings.defaultModel : chosenModel,
-            system: prompt.system,
-            user: prompt.user,
-            temperature: action.temperature,
-            noTraining: settings.noTraining,
-            fastMode: settings.fastMode
-        )
-        let showDiff = action.builtin != "summarise" && !action.isTranslate
+        // The answer appears word by word in the palette while it is written.
+        let relay = StreamRelay { [weak self] text in
+            guard let self, self.runID == id, self.panel?.isVisible == true else { return }
+            self.palette.showPartial(text)
+        }
+        self.relay = relay
+        let appName = capture.app?.localizedName
 
         currentTask = Task { [weak self] in
             do {
-                let response = try await OpenRouterClient.complete(request)
-                UsageStore.shared.record(
-                    model: request.model,
-                    promptTokens: response.promptTokens,
-                    completionTokens: response.completionTokens,
-                    reportedCost: response.cost
-                )
-                try Task.checkCancellation()
-                let cleaned = TextCleanup.clean(response.content, original: parts.core)
-                await self?.finish(
-                    result: parts.lead + cleaned + parts.trail,
-                    core: cleaned,
-                    original: parts.core,
-                    title: title,
-                    replaceDirectly: replaceDirectly,
-                    showDiff: showDiff
-                )
+                let output = try await ActionRunner.run(prepared) { text in relay.push(text) }
+                relay.stop()
+                guard let self, self.runID == id else { return }
+                HistoryStore.shared.add(title: prepared.title, original: output.original, result: output.core, appName: appName)
+                await self.finish(output: output, title: prepared.title, replaceDirectly: replaceDirectly, showDiff: prepared.showDiff)
             } catch {
+                relay.stop()
                 if error is CancellationError { return }
                 if let urlError = error as? URLError, urlError.code == .cancelled { return }
-                self?.fail(error.localizedDescription)
+                guard let self, self.runID == id else { return }
+                self.fail(error.localizedDescription)
             }
         }
     }
 
-    private func finish(result: String, core: String, original: String, title: String, replaceDirectly: Bool, showDiff: Bool) async {
+    private func finish(output: RunOutput, title: String, replaceDirectly: Bool, showDiff: Bool) async {
         setBusy(false)
         HotkeyCenter.shared.setEscapeHandler(nil)
         currentTask = nil
@@ -319,11 +438,11 @@ final class AppController: NSObject, NSMenuDelegate {
             let target = capture
             closePalette()
             Toast.shared.hide()
-            await SelectionService.replace(with: result, target: target)
+            await SelectionService.replace(with: output.full, target: target)
         } else {
             Toast.shared.hide()
             if panel?.isVisible != true { showPanel() }
-            palette.showResult(title: title, full: result, core: core, original: original, showDiff: showDiff)
+            palette.showResult(title: title, full: output.full, core: output.core, original: output.original, showDiff: showDiff)
         }
     }
 
@@ -339,6 +458,9 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     private func cancelRun() {
+        runID += 1
+        relay?.stop()
+        relay = nil
         currentTask?.cancel()
         currentTask = nil
         setBusy(false)
@@ -443,9 +565,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private func copyResult() {
         let text = palette.resultCore
         closePalette()
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        Toast.shared.show("Copied", icon: "doc.on.doc")
+        copyToClipboard(text)
     }
 
     private func retry() {

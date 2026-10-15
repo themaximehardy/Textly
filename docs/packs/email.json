@@ -1,0 +1,48 @@
+{
+  "format": "textly-action-pack",
+  "version": 1,
+  "name": "Email and messages",
+  "description": "Replies and tone changes for email, Slack and Teams.",
+  "actions": [
+    {
+      "name": "Reply: yes",
+      "icon": "hand.thumbsup",
+      "prompt": "MODE: REPLY YES\nWrite a short, friendly reply to the message that accepts or agrees. Answer any direct question briefly. Match the message's language and level of formality.",
+      "output": "show",
+      "temperature": 0.5,
+      "useSharedRules": true
+    },
+    {
+      "name": "Reply: politely no",
+      "icon": "hand.raised",
+      "prompt": "MODE: REPLY NO\nWrite a short, kind reply to the message that politely declines. Give a brief reason only if the message invites one, and suggest an alternative when it is natural. Match the message's language and level of formality.",
+      "output": "show",
+      "temperature": 0.5,
+      "useSharedRules": true
+    },
+    {
+      "name": "More formal",
+      "icon": "briefcase",
+      "prompt": "MODE: MORE FORMAL\nRewrite the text in a more professional, polished tone suitable for a client or manager. Keep it concise and keep every fact, name and request. Use the formal form of address where the language has one (vous, Sie, usted).",
+      "output": "replace",
+      "temperature": 0.3,
+      "useSharedRules": true
+    },
+    {
+      "name": "Friendlier",
+      "icon": "face.smiling",
+      "prompt": "MODE: FRIENDLIER\nRewrite the text so it sounds warmer and more approachable, without becoming over the top. Keep every fact, name and request, and keep it roughly the same length.",
+      "output": "replace",
+      "temperature": 0.4,
+      "useSharedRules": true
+    },
+    {
+      "name": "Bullet points",
+      "icon": "list.bullet",
+      "prompt": "MODE: BULLET POINTS\nTurn the text into a short list of clear \"- \" bullet points, one idea per bullet. Keep every fact, name, number and request. No title, no introduction.",
+      "output": "replace",
+      "temperature": 0.2,
+      "useSharedRules": true
+    }
+  ]
+}

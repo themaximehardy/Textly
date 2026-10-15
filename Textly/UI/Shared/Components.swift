@@ -117,6 +117,7 @@ struct IconPicker: View {
 /// A removable language tag in Settings.
 struct LanguageChip: View {
     let name: String
+    var removeHelp: String? = nil
     let onRemove: @MainActor () -> Void
 
     var body: some View {
@@ -127,7 +128,7 @@ struct LanguageChip: View {
                     .font(.system(size: 9, weight: .bold))
             }
             .buttonStyle(.plain)
-            .help("Unpin \(name)")
+            .help(removeHelp ?? "Unpin \(name)")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)

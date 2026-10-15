@@ -25,6 +25,30 @@ struct GeneralTab: View {
 
     var body: some View {
         Form {
+            Section {
+                Picker("Provider", selection: $store.settings.provider) {
+                    ForEach(AIProvider.allCases) { provider in
+                        Text(provider.label).tag(provider)
+                    }
+                }
+                .pickerStyle(.segmented)
+            } header: {
+                Text("AI")
+            } footer: {
+                Text(store.settings.provider == .openRouter
+                     ? "OpenRouter gives you hundreds of models (Gemini, Claude, GPT, Mistral…) with one key. You pay only for what you use."
+                     : "Run a model on your Mac with Ollama or LM Studio. Free and private, but small models are less accurate.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            if store.settings.provider == .local {
+                Section("Local model") {
+                    LocalModelSettings(store: store)
+                }
+            }
+
+            if store.settings.provider == .openRouter {
             Section("OpenRouter") {
                 LabeledContent("API key") {
                     if editingKey || !store.hasAPIKey {
@@ -85,6 +109,7 @@ struct GeneralTab: View {
                 }
                 Toggle("Fast mode (skip long reasoning so answers come back quicker)", isOn: $store.settings.fastMode)
                 Toggle("Only use providers that don't store or train on my text", isOn: $store.settings.noTraining)
+            }
             }
 
             Section("Palette") {
@@ -185,8 +210,32 @@ struct GeneralTab: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section {
+                Toggle("Keep recent results after quitting Textly", isOn: $store.settings.keepHistory)
+                HStack {
+                    Text("The last \(HistoryStore.limit) results are in the menu bar › Recent Results, to copy or paste again.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Clear") { HistoryStore.shared.clear() }
+                }
+            } header: {
+                Text("History")
+            } footer: {
+                Text("When this is off, history is only kept in memory and disappears when Textly quits.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("System") {
                 Toggle("Launch Textly at login", isOn: $launchAtLogin)
+                HStack {
+                    Toggle("Check for updates automatically", isOn: $store.settings.checkForUpdates)
+                    Spacer()
+                    Button("Check now") {
+                        Task { await UpdateChecker.shared.check(userInitiated: true) }
+                    }
+                }
                     .onChange(of: launchAtLogin) { _, newValue in
                         setLaunchAtLogin(newValue)
                     }
@@ -246,7 +295,7 @@ struct GeneralTab: View {
         let key = store.apiKey
         Task {
             do {
-                try await OpenRouterClient.checkKey(key)
+                try await AIClient.checkKey(key)
                 keyStatus = "Connected ✓"
             } catch {
                 keyStatus = error.localizedDescription

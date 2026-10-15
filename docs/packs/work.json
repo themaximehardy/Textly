@@ -1,0 +1,40 @@
+{
+  "format": "textly-action-pack",
+  "version": 1,
+  "name": "Work",
+  "description": "Turn notes into tickets, updates and to-dos.",
+  "actions": [
+    {
+      "name": "Action items",
+      "icon": "checklist",
+      "prompt": "MODE: ACTION ITEMS\nExtract the action items from the text as \"- \" bullet points: who does what, by when (when known). Leave out everything else. If there are no action items, return \"No action items\" in the language of the text.",
+      "output": "show",
+      "temperature": 0.2,
+      "useSharedRules": true
+    },
+    {
+      "name": "Status update",
+      "icon": "chart.line.uptrend.xyaxis",
+      "prompt": "MODE: STATUS UPDATE\nRewrite the notes as a short status update with three parts, each on its own line: Done, Next, Blockers (write \"none\" when there are none). Keep it factual and brief. Use the language of the notes.",
+      "output": "replace",
+      "temperature": 0.3,
+      "useSharedRules": true
+    },
+    {
+      "name": "Ticket",
+      "icon": "ticket",
+      "prompt": "MODE: TICKET\nRewrite the text as a clear ticket: a one-line title, then a short description, then \"Acceptance criteria\" as \"- \" bullet points. Do not invent requirements that are not in the text.",
+      "output": "show",
+      "temperature": 0.3,
+      "useSharedRules": true
+    },
+    {
+      "name": "Explain simply",
+      "icon": "lightbulb",
+      "prompt": "MODE: EXPLAIN\nExplain the text in plain words for someone outside the field, in two to four short sentences, in the language of the text. Do not add facts that are not in the text.",
+      "output": "show",
+      "temperature": 0.3,
+      "useSharedRules": true
+    }
+  ]
+}

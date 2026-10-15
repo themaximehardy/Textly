@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // The unit tests run inside the app: no menu bar icon, shortcuts or windows then.
+        guard !AppInfo.isRunningTests else { return }
         MainMenu.install()
         AppController.shared.start()
     }

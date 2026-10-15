@@ -1,0 +1,43 @@
+name: CI
+
+# Builds Textly and runs the unit tests on every push and pull request.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Use the newest stable Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Build and test
+        run: |
+          mkdir -p build
+          xcodebuild test \
+            -project Textly.xcodeproj \
+            -scheme Textly \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO "CODE_SIGN_IDENTITY=" "DEVELOPMENT_TEAM=" \
+            > build/xcodebuild.log 2>&1 && status=0 || status=$?
+          grep -E "error:|Test Case .* failed|Executed [0-9]+ test|\*\* (TEST|BUILD) " build/xcodebuild.log || true
+          exit $status
+
+      - name: Keep the full log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: build/xcodebuild.log

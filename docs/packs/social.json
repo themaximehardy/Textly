@@ -1,0 +1,32 @@
+{
+  "format": "textly-action-pack",
+  "version": 1,
+  "name": "Social",
+  "description": "Posts for LinkedIn and other networks.",
+  "actions": [
+    {
+      "name": "LinkedIn post",
+      "icon": "person.2",
+      "prompt": "MODE: LINKEDIN POST\nTurn the text into a short LinkedIn post: a strong first line, two or three short paragraphs, no more than three relevant hashtags at the end. Sound like a real person, not a marketer. No emojis unless the original has some.",
+      "output": "show",
+      "temperature": 0.6,
+      "useSharedRules": true
+    },
+    {
+      "name": "Short post",
+      "icon": "bubble.left",
+      "prompt": "MODE: SHORT POST\nRewrite the text as a single post of at most 280 characters that keeps the main point and the writer's voice.",
+      "output": "show",
+      "temperature": 0.5,
+      "useSharedRules": true
+    },
+    {
+      "name": "Catchy title",
+      "icon": "textformat.size",
+      "prompt": "MODE: TITLE\nWrite one short, catchy title for the text, in its language. Return only the title.",
+      "output": "show",
+      "temperature": 0.7,
+      "useSharedRules": true
+    }
+  ]
+}

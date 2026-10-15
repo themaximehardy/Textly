@@ -24,22 +24,33 @@ enum SelectionService {
         let isOwnApp = app?.processIdentifier == ProcessInfo.processInfo.processIdentifier
         let ownWindow = isOwnApp ? NSApp.keyWindow : nil
 
+        if !isOwnApp { AppCompatibility.prepare(app) }
+
         var anchor: NSRect?
         if let element = focusedElement() {
             if isSecureField(element) { return nil }
             anchor = selectionBounds(element)
-            if let text = selectedText(element), !text.isEmpty {
+            if let text = selectedText(element), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 return CapturedSelection(text: text, app: app, anchor: anchor, ownWindow: ownWindow)
             }
             // The app says nothing is selected. Don't fall back to ⌘C: editors like VS Code
             // would copy the whole line and Textly would paste a duplicate.
-            if selectedRangeLength(element) == 0 { return nil }
+            // Browsers are the exception: web editors (Google Docs…) often report an empty selection.
+            if selectedRangeLength(element) == 0 && AppCompatibility.trustsEmptySelection(app) { return nil }
         }
 
-        if let text = await copyViaClipboard(), !text.isEmpty {
+        if let text = await copyViaClipboard(), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return CapturedSelection(text: text, app: app, anchor: anchor, ownWindow: ownWindow)
         }
         return nil
+    }
+
+    /// For text handed over by macOS Services: the text is known, only the app and position are needed.
+    static func selection(withText text: String) -> CapturedSelection {
+        let app = NSWorkspace.shared.frontmostApplication
+        let isOwnApp = app?.processIdentifier == ProcessInfo.processInfo.processIdentifier
+        let anchor = focusedElement().flatMap { selectionBounds($0) }
+        return CapturedSelection(text: text, app: app, anchor: anchor, ownWindow: isOwnApp ? NSApp.keyWindow : nil)
     }
 
     static func replace(with text: String, target: CapturedSelection?) async {

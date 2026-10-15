@@ -45,8 +45,8 @@ private struct ListLayout: View {
                 case .languages:
                     LanguagePicker(model: model)
                 case .working(let title):
-                    WorkingView(title: title)
-                        .padding(16)
+                    WorkingView(title: title, partial: model.streamingText, textWidth: Self.width - 28)
+                        .padding(14)
                 case .result:
                     ResultPane(model: model, textWidth: Self.width - 28)
                         .padding(14)
@@ -103,7 +103,7 @@ private struct PreviewLayout: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         case .working(let title):
-            WorkingView(title: title)
+            WorkingView(title: title, partial: model.streamingText, textWidth: Self.paneWidth - 28)
         case .result:
             ResultPane(model: model, textWidth: Self.paneWidth - 28)
         case .error(let message):
@@ -294,14 +294,41 @@ private struct LanguageRowView: View {
 
 private struct WorkingView: View {
     let title: String
+    /// The answer so far (streamed), shown live under the title.
+    let partial: String
+    let textWidth: CGFloat
+
+    private var textHeight: CGFloat {
+        min(max(TextMeasure.height(partial, width: textWidth - 8), 20), 280)
+    }
 
     var body: some View {
-        HStack(spacing: 10) {
-            ProgressView()
-                .controlSize(.small)
-            Text("\(title)…")
-                .font(.system(size: 13))
-            Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("\(title)…")
+                    .font(.system(size: partial.isEmpty ? 13 : 12, weight: partial.isEmpty ? .regular : .semibold))
+                Spacer(minLength: 0)
+            }
+            if !partial.isEmpty {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(partial)
+                                .font(.system(size: 13))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Color.clear
+                                .frame(height: 1)
+                                .id("end")
+                        }
+                    }
+                    .frame(width: textWidth, height: textHeight)
+                    .onChange(of: partial) { _, _ in
+                        proxy.scrollTo("end", anchor: .bottom)
+                    }
+                }
+            }
         }
     }
 }
@@ -416,7 +443,7 @@ private struct FooterHints: View {
         switch screen {
         case .menu: return ["↵ Run", "Letter = shortcut"]
         case .languages: return ["↵ Translate", "⌘P Pin"]
-        case .working: return ["Working…"]
+        case .working: return ["Writing…"]
         case .result: return ["↵ Replace", "⌘C Copy", "⌘R Try again"]
         case .error: return ["↵ Try again"]
         }

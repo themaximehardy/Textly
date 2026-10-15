@@ -61,6 +61,22 @@ enum TextCleanup {
         return Parts(lead: lead, core: core, trail: trail)
     }
 
+    /// Light clean-up for text that is still streaming in (shown live in the palette).
+    static func partial(_ output: String) -> String {
+        var result = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        if result.hasPrefix("<text>") {
+            result = String(result.dropFirst(6))
+        }
+        if let end = result.range(of: "</text>") {
+            result = String(result[..<end.lowerBound])
+        }
+        if "<text>".hasPrefix(result) {
+            // The opening tag is still arriving.
+            return ""
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     static func clean(_ output: String, original: String) -> String {
         var result = output.trimmingCharacters(in: .whitespacesAndNewlines)
 

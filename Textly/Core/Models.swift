@@ -2,12 +2,18 @@ import AppKit
 import Carbon.HIToolbox
 
 enum AppInfo {
-    /// Change this to the public GitHub URL once the repo exists.
-    /// It is also sent to OpenRouter as the app's referrer, so Textly appears in OpenRouter's app rankings.
-    static let homepage = "https://github.com/themaximehardy/textly"
+    /// GitHub "owner/name". Used for the homepage link and the update check.
+    static let repository = "themaximehardy/textly"
+    /// Also sent to OpenRouter as the app's referrer, so Textly appears in OpenRouter's app rankings.
+    static let homepage = "https://github.com/\(repository)"
     static var homepageURL: URL { URL(string: homepage) ?? URL(string: "https://github.com")! }
     static var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
+    }
+    /// True when the unit tests are running (the app then skips its menu bar and shortcuts).
+    static var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
     }
 }
 
@@ -49,6 +55,83 @@ enum PaletteStyle: String, Codable, CaseIterable, Identifiable {
         case .preview:
             return "A wider panel that always shows the result, with changes highlighted, before anything is replaced."
         }
+    }
+}
+
+// MARK: - AI provider and writing profile
+
+enum AIProvider: String, Codable, CaseIterable, Identifiable {
+    /// openrouter.ai with your own key: hundreds of models, pay per use.
+    case openRouter
+    /// An OpenAI-compatible server on your Mac or network (Ollama, LM Studio…). Free and private.
+    case local
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .openRouter: return "OpenRouter"
+        case .local: return "Local model"
+        }
+    }
+}
+
+enum EnglishVariant: String, Codable, CaseIterable, Identifiable {
+    case british
+    case american
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .british: return "British (colour, organise)"
+        case .american: return "American (color, organize)"
+        }
+    }
+}
+
+/// How the user writes. Chosen during setup; the shared rules are generated from it.
+struct WritingProfile: Codable, Equatable {
+    var languages: [String]
+    var englishVariant: EnglishVariant
+    /// Mixes languages in the same message (e.g. Franglais).
+    var mixesLanguages: Bool
+    /// Never use em dashes or en dashes as punctuation.
+    var avoidDashes: Bool
+
+    /// The profile Textly's original rules were written for (French and English, mixed, British English).
+    static let classic = WritingProfile(languages: ["French", "English"], englishVariant: .british, mixesLanguages: true, avoidDashes: true)
+
+    /// A first guess from the languages set in macOS (System Settings › General › Language & Region).
+    static func suggested(preferred: [String] = Locale.preferredLanguages) -> WritingProfile {
+        let english = Locale(identifier: "en_US")
+        var names: [String] = []
+        var codes = Set<String>()
+        var variant: EnglishVariant = .british
+        for identifier in preferred {
+            let locale = Locale(identifier: identifier)
+            guard let code = locale.language.languageCode?.identifier, !codes.contains(code) else { continue }
+            codes.insert(code)
+            if code == "en", locale.region?.identifier == "US" { variant = .american }
+            if let name = english.localizedString(forLanguageCode: code) {
+                names.append(name)
+            }
+            if names.count == 3 { break }
+        }
+        if names.isEmpty { names = ["English"] }
+        return WritingProfile(languages: names, englishVariant: variant, mixesLanguages: names.count > 1, avoidDashes: true)
+    }
+
+    var includesEnglish: Bool { languages.contains { SharedRulesBuilder.baseName($0).caseInsensitiveCompare("English") == .orderedSame } }
+}
+
+extension WritingProfile {
+    enum CodingKeys: String, CodingKey { case languages, englishVariant, mixesLanguages, avoidDashes }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        languages = try c.decodeIfPresent([String].self, forKey: .languages) ?? WritingProfile.classic.languages
+        englishVariant = try c.decodeIfPresent(EnglishVariant.self, forKey: .englishVariant) ?? .british
+        mixesLanguages = try c.decodeIfPresent(Bool.self, forKey: .mixesLanguages) ?? true
+        avoidDashes = try c.decodeIfPresent(Bool.self, forKey: .avoidDashes) ?? true
     }
 }
 
@@ -159,11 +242,24 @@ struct AppSettings: Codable, Equatable {
     var appLogo: String
     /// Bumped when default branding changes, so existing installs pick up the new icons once.
     var brandingVersion: Int
+    /// OpenRouter or a local server.
+    var provider: AIProvider
+    /// Base URL of the local OpenAI-compatible server, e.g. http://localhost:11434/v1 (Ollama).
+    var localBaseURL: String
+    /// Model used for every action when the provider is local.
+    var localModel: String
+    /// Languages and style, used to generate the shared rules.
+    var writingProfile: WritingProfile
+    /// Keep the recent results after Textly quits (they are always kept while it runs).
+    var keepHistory: Bool
+    /// Look for a new version on GitHub once a day.
+    var checkForUpdates: Bool
 
     static func defaults() -> AppSettings {
-        AppSettings(
+        let profile = WritingProfile.suggested()
+        return AppSettings(
             defaultModel: DefaultPrompts.defaultModel,
-            sharedRules: DefaultPrompts.sharedRules,
+            sharedRules: SharedRulesBuilder.build(profile),
             glossary: "",
             actions: DefaultPrompts.defaultActions(),
             pinnedLanguages: Languages.defaultPinned(),
@@ -176,8 +272,21 @@ struct AppSettings: Codable, Equatable {
             menuBarIcon: MenuBarIcons.defaultIcon,
             usesPerDay: 20,
             appLogo: AppLogos.defaultLogo,
-            brandingVersion: AppLogos.brandingVersion
+            brandingVersion: AppLogos.brandingVersion,
+            provider: .openRouter,
+            localBaseURL: LocalServer.ollama,
+            localModel: "",
+            writingProfile: profile,
+            keepHistory: false,
+            checkForUpdates: true
         )
+    }
+
+    /// The model an action runs with (local mode uses the one local model for everything).
+    func model(for action: TextAction) -> String {
+        if provider == .local { return localModel.trimmingCharacters(in: .whitespaces) }
+        let chosen = action.model.trimmingCharacters(in: .whitespaces)
+        return chosen.isEmpty ? defaultModel : chosen
     }
 
     /// Every shortcut in use, keyed by owner. Used to know when to re-register global shortcuts.
@@ -213,6 +322,7 @@ extension AppSettings {
         case defaultModel, sharedRules, glossary, actions, pinnedLanguages, recentLanguages
         case paletteHotkey, paletteStyle, noTraining, fastMode, hasCompletedOnboarding
         case menuBarIcon, usesPerDay, appLogo, brandingVersion
+        case provider, localBaseURL, localModel, writingProfile, keepHistory, checkForUpdates
     }
 
     init(from decoder: Decoder) throws {
@@ -233,6 +343,13 @@ extension AppSettings {
         usesPerDay = try c.decodeIfPresent(Int.self, forKey: .usesPerDay) ?? d.usesPerDay
         appLogo = try c.decodeIfPresent(String.self, forKey: .appLogo) ?? d.appLogo
         brandingVersion = try c.decodeIfPresent(Int.self, forKey: .brandingVersion) ?? 0
+        provider = try c.decodeIfPresent(AIProvider.self, forKey: .provider) ?? .openRouter
+        localBaseURL = try c.decodeIfPresent(String.self, forKey: .localBaseURL) ?? LocalServer.ollama
+        localModel = try c.decodeIfPresent(String.self, forKey: .localModel) ?? ""
+        // Settings saved before 0.4 were written for French and English.
+        writingProfile = try c.decodeIfPresent(WritingProfile.self, forKey: .writingProfile) ?? .classic
+        keepHistory = try c.decodeIfPresent(Bool.self, forKey: .keepHistory) ?? false
+        checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? true
     }
 }
 

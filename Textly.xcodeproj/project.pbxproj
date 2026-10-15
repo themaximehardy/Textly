@@ -6,8 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		7A1000000000000000000019 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7A100000000000000000000A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7A1000000000000000000006;
+			remoteInfo = Textly;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		7A1000000000000000000001 /* Textly.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Textly.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7A1000000000000000000010 /* TextlyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TextlyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7A100000000000000000001B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +28,22 @@
 			path = Textly;
 			sourceTree = "<group>";
 		};
+		7A1000000000000000000011 /* TextlyTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TextlyTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		7A1000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A1000000000000000000012 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,14 +57,25 @@
 			isa = PBXGroup;
 			children = (
 				7A1000000000000000000002 /* Textly */,
+				7A1000000000000000000011 /* TextlyTests */,
+				7A100000000000000000001C /* Config */,
 				7A1000000000000000000005 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		7A100000000000000000001C /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				7A100000000000000000001B /* Info.plist */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		7A1000000000000000000005 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				7A1000000000000000000001 /* Textly.app */,
+				7A1000000000000000000010 /* TextlyTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,6 +105,29 @@
 			productReference = 7A1000000000000000000001 /* Textly.app */;
 			productType = "com.apple.product-type.application";
 		};
+		7A1000000000000000000015 /* TextlyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7A1000000000000000000016 /* Build configuration list for PBXNativeTarget "TextlyTests" */;
+			buildPhases = (
+				7A1000000000000000000013 /* Sources */,
+				7A1000000000000000000012 /* Frameworks */,
+				7A1000000000000000000014 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7A100000000000000000001A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7A1000000000000000000011 /* TextlyTests */,
+			);
+			name = TextlyTests;
+			packageProductDependencies = (
+			);
+			productName = TextlyTests;
+			productReference = 7A1000000000000000000010 /* TextlyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -82,6 +140,10 @@
 				TargetAttributes = {
 					7A1000000000000000000006 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					7A1000000000000000000015 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = 7A1000000000000000000006;
 					};
 				};
 			};
@@ -100,12 +162,20 @@
 			projectRoot = "";
 			targets = (
 				7A1000000000000000000006 /* Textly */,
+				7A1000000000000000000015 /* TextlyTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		7A1000000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A1000000000000000000014 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +192,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7A1000000000000000000013 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7A100000000000000000001A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7A1000000000000000000006 /* Textly */;
+			targetProxy = 7A1000000000000000000019 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		7A100000000000000000000C /* Debug */ = {
@@ -237,7 +322,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -245,13 +330,14 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Textly;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "MIT License";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = work.hardy.Textly;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -267,7 +353,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -275,13 +361,14 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Textly;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "MIT License";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = work.hardy.Textly;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -289,9 +376,52 @@
 			};
 			name = Release;
 		};
+		7A1000000000000000000017 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.4.0;
+				PRODUCT_BUNDLE_IDENTIFIER = work.hardy.TextlyTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Textly.app/Contents/MacOS/Textly";
+			};
+			name = Debug;
+		};
+		7A1000000000000000000018 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.4.0;
+				PRODUCT_BUNDLE_IDENTIFIER = work.hardy.TextlyTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Textly.app/Contents/MacOS/Textly";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		7A1000000000000000000016 /* Build configuration list for PBXNativeTarget "TextlyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7A1000000000000000000017 /* Debug */,
+				7A1000000000000000000018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		7A1000000000000000000007 /* Build configuration list for PBXNativeTarget "Textly" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

@@ -31,14 +31,14 @@ enum DefaultPrompts {
     static let fix = """
     MODE: CORRECT
     Only correct actual errors in spelling, grammar, accents, agreement, syntax and punctuation. Make the smallest possible changes. Preserve the vocabulary, word order, informal tone and Franglais whenever they are understandable and natural.
-    Never translate French into English or English into French unless necessary to correct an obvious mistake.
+    Never translate the text, or any part of it, into another language unless necessary to correct an obvious mistake.
     If the text is already correct and natural, return it unchanged.
     """
 
     static let improve = """
     MODE: IMPROVE
     Correct errors and improve clarity, readability, fluency and sentence structure. Prefer natural, concise and direct wording. Make the text feel like a better version of something the same person would have written. Never over-polish or substantially change the tone.
-    Never translate French into English or English into French unless necessary to correct an obvious mistake.
+    Never translate the text, or any part of it, into another language unless necessary to correct an obvious mistake.
     """
 
     static let summarise = """
@@ -72,6 +72,17 @@ enum DefaultPrompts {
     Describe what to do with the selected text, in one or two sentences.
     Example: Rewrite the text as a short, polite reply that says yes.
     """
+
+    /// A sentence with mistakes, to try actions on (setup window, Settings › Actions › Try it).
+    static func sampleText(for profile: WritingProfile) -> String {
+        let french = profile.languages.contains {
+            let name = SharedRulesBuilder.baseName($0).lowercased()
+            return name.hasPrefix("french") || name.hasPrefix("fran")
+        }
+        return french
+            ? "Salut ! Je vais check sa demain et je te fait un retour avant le go-live, promis."
+            : "Hi! I will check it tomorow and get back to you before the launch, i promise their will be no more delay."
+    }
 
     struct Builtin {
         let key: String

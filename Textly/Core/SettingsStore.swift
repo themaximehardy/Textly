@@ -69,7 +69,45 @@ final class SettingsStore: ObservableObject {
         settings = updated
     }
 
+    // MARK: Writing profile
+
+    /// True when the shared rules are still generated ones (not edited by hand).
+    var sharedRulesAreGenerated: Bool {
+        let current = Self.normalise(settings.sharedRules)
+        return current == Self.normalise(SharedRulesBuilder.build(settings.writingProfile))
+            || current == Self.normalise(DefaultPrompts.sharedRules)
+            || current.isEmpty
+    }
+
+    /// Saves the profile. Regenerates the shared rules unless they were edited by hand
+    /// (then `replaceRules: true` is needed). During setup, the languages are also pinned for Translate.
+    func setWritingProfile(_ profile: WritingProfile, replaceRules: Bool = false) {
+        var updated = settings
+        let wasGenerated = sharedRulesAreGenerated
+        let oldLanguages = settings.writingProfile.languages
+        updated.writingProfile = profile
+        if wasGenerated || replaceRules {
+            updated.sharedRules = SharedRulesBuilder.build(profile)
+        }
+        if !settings.hasCompletedOnboarding || settings.pinnedLanguages == oldLanguages {
+            updated.pinnedLanguages = profile.languages
+        }
+        settings = updated
+    }
+
+    private static func normalise(_ text: String) -> String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     // MARK: Actions
+
+    /// Adds the actions from a pack. Returns how many were added.
+    @discardableResult
+    func importPack(_ pack: ActionPack) -> Int {
+        let new = pack.makeActions(existingNames: settings.actions.map(\.name))
+        settings.actions.append(contentsOf: new)
+        return new.count
+    }
 
     func resetBuiltin(_ id: UUID) {
         guard let index = settings.actions.firstIndex(where: { $0.id == id }),

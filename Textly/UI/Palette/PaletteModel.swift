@@ -76,6 +76,8 @@ final class PaletteModel: ObservableObject {
     @Published var resultCore = ""
     @Published var diff: [DiffSegment]? = nil
     @Published var changeCount = 0
+    /// The answer so far, while it is being written.
+    @Published var streamingText = ""
 
     var onRun: (@MainActor (PaletteItem.Kind) -> Void)?
     var onRunLanguage: (@MainActor (String) -> Void)?
@@ -100,6 +102,7 @@ final class PaletteModel: ObservableObject {
         self.resultCore = ""
         self.diff = nil
         self.changeCount = 0
+        self.streamingText = ""
         self.screen = .menu
         refreshLanguages(resetHighlight: true)
     }
@@ -184,7 +187,13 @@ final class PaletteModel: ObservableObject {
     // MARK: Results
 
     func startWorking(title: String) {
+        streamingText = ""
         screen = .working(title)
+    }
+
+    func showPartial(_ text: String) {
+        guard case .working = screen, text != streamingText else { return }
+        streamingText = text
     }
 
     func showResult(title: String, full: String, core: String, original: String, showDiff: Bool) {
