@@ -102,3 +102,11 @@ final class TextDiffTests: XCTestCase {
         XCTAssertFalse(TextDiff.isWorthShowing(segments))
     }
 }
+
+final class ThinkingTests: XCTestCase {
+    func testThinkingIsRemovedFromLocalReasoningModels() {
+        XCTAssertEqual(TextCleanup.clean("<think>\nLet me fix it.\n</think>\n\nBonjour", original: "Bonjur"), "Bonjour")
+        XCTAssertEqual(TextCleanup.partial("<think>Still thinking"), "")
+        XCTAssertEqual(TextCleanup.partial("<think>Done</think>\nBon"), "Bon")
+    }
+}

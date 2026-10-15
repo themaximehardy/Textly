@@ -97,8 +97,18 @@ final class UpdateChecker {
             let (data, response) = try await URLSession.shared.data(for: request)
             defaults.set(Date(), forKey: lastCheckKey)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard status == 200, let release = ReleaseInfo.parse(data) else {
-                if userInitiated { showUpToDate(note: status == 404 ? "No release has been published yet." : nil) }
+            guard status == 200 else {
+                if userInitiated {
+                    if status == 404 {
+                        showUpToDate(note: "No release has been published yet.")
+                    } else {
+                        alert(title: "Couldn't check for updates", message: "GitHub returned an error (HTTP \(status)). Try again later.", buttons: ["OK"])
+                    }
+                }
+                return
+            }
+            guard let release = ReleaseInfo.parse(data) else {
+                if userInitiated { showUpToDate(note: nil) }
                 return
             }
             guard let latest = AppVersion(release.version),

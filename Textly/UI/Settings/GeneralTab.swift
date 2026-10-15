@@ -229,6 +229,9 @@ struct GeneralTab: View {
 
             Section("System") {
                 Toggle("Launch Textly at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, newValue in
+                        setLaunchAtLogin(newValue)
+                    }
                 HStack {
                     Toggle("Check for updates automatically", isOn: $store.settings.checkForUpdates)
                     Spacer()
@@ -236,9 +239,6 @@ struct GeneralTab: View {
                         Task { await UpdateChecker.shared.check(userInitiated: true) }
                     }
                 }
-                    .onChange(of: launchAtLogin) { _, newValue in
-                        setLaunchAtLogin(newValue)
-                    }
                 HStack {
                     Label(
                         trusted ? "Accessibility permission granted" : "Accessibility permission needed",

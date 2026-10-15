@@ -2,6 +2,25 @@
 
 All notable changes to Textly. Versions follow [Semantic Versioning](https://semver.org): 0.x while the app is in early development.
 
+## [0.4.0] - 2026-10-15
+
+### Added
+- **Live results**: the answer appears word by word in the palette while it's being written (streaming).
+- **Local models**: run Textly with Ollama, LM Studio or any OpenAI-compatible server instead of OpenRouter (Settings › General › AI). Free, private, works offline.
+- **Your languages during setup**: pick the languages you write in, British or American English, whether you mix languages, and whether to avoid long dashes. Textly writes its shared rules from this and pins those languages for Translate. Also in Settings › Rules & Glossary.
+- **Right-click › Services › Textly**: Open Palette, Fix, Improve, Summarise and Translate from the context menu of apps built with Apple's text controls.
+- **Recent results** in the menu bar: the last 20 results, to paste or copy again (result or original). Kept in memory, or after quitting if you turn it on in Settings › General › History.
+- **Action packs**: export your actions to a file and import other people's (Settings › Actions › share button). Three packs to start with in [docs/packs](docs/packs): Email and messages, Work, Social.
+- **Try it** box under each action in Settings › Actions: test your prompt on sample text before using it, with time, tokens and cost.
+- **Update check**: Textly looks for a new version on GitHub once a day and offers to download it. Also in the menu bar › Check for Updates…
+- Better support for apps that don't share their selection: Electron apps (Slack, VS Code, Notion…) and Chromium browsers are asked to turn on accessibility, and browsers (Google Docs…) always fall back to copying. See [COMPATIBILITY.md](COMPATIBILITY.md).
+- Unit tests (prompts, clean-up, diff, shortcuts, languages, settings migration, streaming parser, packs, history, versions) and a CI workflow that builds and tests every push.
+- Open-source basics: contributing guide, security policy, code of conduct, issue and pull request templates.
+
+### Changed
+- The built-in Fix and Improve prompts no longer mention French and English specifically (they say "never translate into another language"). Your edited prompts are kept.
+- Thinking from local reasoning models (`<think>…</think>`) is removed from results.
+
 ## [0.3.0] - 2026-10-15
 
 ### Added

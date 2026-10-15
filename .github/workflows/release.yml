@@ -49,7 +49,8 @@ jobs:
           ### Install
           1. Download **Textly-*.dmg** below, open it and drag Textly to Applications.
           2. Open Textly. macOS says it can't verify the app (it isn't notarised yet): click **Done**, then **System Settings › Privacy & Security › Open Anyway**. Only the first time.
-          3. Follow the setup window: OpenRouter API key, then Accessibility permission.
+          3. Follow the setup window: OpenRouter API key (or a local model with Ollama or LM Studio), your languages, then Accessibility permission.
+          4. Already have Textly? Quit it, then replace it in Applications. If the shortcut stops working, remove Textly from System Settings › Privacy & Security › Accessibility and add it again.
           NOTES
 
       - name: Publish release

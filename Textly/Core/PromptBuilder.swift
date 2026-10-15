@@ -46,6 +46,16 @@ enum PromptBuilder {
 
 /// Keeps the spaces and line breaks around the selection, and strips wrappers some models add.
 enum TextCleanup {
+    /// Some local reasoning models (Qwen 3, DeepSeek R1…) write their thinking in <think>…</think> before the answer.
+    static func removingThinking(_ text: String, hideUnfinished: Bool) -> String {
+        guard text.contains("<think>") else { return text }
+        var result = text.replacingOccurrences(of: "(?s)<think>.*?</think>", with: "", options: .regularExpression)
+        if hideUnfinished, let open = result.range(of: "<think>") {
+            result = String(result[..<open.lowerBound])
+        }
+        return result
+    }
+
     struct Parts {
         let lead: String
         let core: String
@@ -63,7 +73,7 @@ enum TextCleanup {
 
     /// Light clean-up for text that is still streaming in (shown live in the palette).
     static func partial(_ output: String) -> String {
-        var result = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        var result = removingThinking(output, hideUnfinished: true).trimmingCharacters(in: .whitespacesAndNewlines)
         if result.hasPrefix("<text>") {
             result = String(result.dropFirst(6))
         }
@@ -78,7 +88,7 @@ enum TextCleanup {
     }
 
     static func clean(_ output: String, original: String) -> String {
-        var result = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        var result = removingThinking(output, hideUnfinished: false).trimmingCharacters(in: .whitespacesAndNewlines)
 
         if result.hasPrefix("<text>") && result.hasSuffix("</text>") {
             result = String(result.dropFirst(6).dropLast(7)).trimmingCharacters(in: .whitespacesAndNewlines)

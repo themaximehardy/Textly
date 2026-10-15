@@ -307,6 +307,8 @@ enum AIClient {
             switch error.code {
             case .cannotConnectToHost, .cannotFindHost, .networkConnectionLost, .notConnectedToInternet:
                 return AIError(message: "Couldn't reach the local server at \(endpoint.baseURL.absoluteString). Make sure Ollama or LM Studio is running.")
+            case .appTransportSecurityRequiresSecureConnection:
+                return AIError(message: "macOS blocks plain http to this address. Use localhost, an IP address or a name ending in .local.")
             case .timedOut:
                 return AIError(message: "The local model took too long to answer. It may still be loading: try again in a moment.")
             default:

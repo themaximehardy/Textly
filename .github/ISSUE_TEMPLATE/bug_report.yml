@@ -1,0 +1,32 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks! Never paste your API key or private text here."
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Textly version (Settings › About) and macOS version
+      placeholder: Textly 0.4.0, macOS 15.6
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: App you were in
+      placeholder: e.g. Slack, Mail, Google Docs in Chrome
+  - type: dropdown
+    id: provider
+    attributes:
+      label: AI provider
+      options: [OpenRouter, Local (Ollama), Local (LM Studio), Local (other)]
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, what happened instead. Screenshots help.
+    validations:
+      required: true

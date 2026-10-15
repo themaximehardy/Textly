@@ -1,0 +1,33 @@
+name: App compatibility
+description: Textly can't read or replace text in an app
+labels: [compatibility]
+body:
+  - type: input
+    id: app
+    attributes:
+      label: App and version
+      placeholder: e.g. Notion 4.12, or Google Docs in Safari
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Textly and macOS versions
+      placeholder: Textly 0.4.0, macOS 15.6
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What goes wrong?
+      options:
+        - '"Select some text first" although text is selected'
+        - The result isn't pasted
+        - The result is pasted in the wrong place or twice
+        - The palette appears in the wrong place
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Does it work with the menu bar icon? With right-click › Services › Textly?

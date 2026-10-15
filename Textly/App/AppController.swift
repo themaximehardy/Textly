@@ -379,6 +379,11 @@ final class AppController: NSObject, NSMenuDelegate {
     private func execute(_ action: TextAction, language: String?) {
         guard let capture else { return }
         let settings = store.settings
+        // Stop any run still in flight first, so its result can't land after this one.
+        currentTask?.cancel()
+        relay?.stop()
+        runID += 1
+        let id = runID
         let prepared: PreparedRun
         do {
             prepared = try ActionRunner.prepare(action: action, language: language, text: capture.text, settings: settings, apiKey: store.apiKey)
@@ -389,10 +394,6 @@ final class AppController: NSObject, NSMenuDelegate {
         let replaceDirectly = settings.paletteStyle == .list && action.output == .replace
         if let language { store.noteRecent(language) }
         lastRun = (action, language)
-        currentTask?.cancel()
-        relay?.stop()
-        runID += 1
-        let id = runID
 
         if !replaceDirectly && panel?.isVisible != true {
             showPanel()
