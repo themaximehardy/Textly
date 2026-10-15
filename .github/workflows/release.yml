@@ -31,7 +31,7 @@ jobs:
           xcodebuild -version
 
       - name: Build DMG
-        run: scripts/make-dmg.sh
+        run: bash scripts/make-dmg.sh
 
       - name: Keep the DMG with this run
         uses: actions/upload-artifact@v4
