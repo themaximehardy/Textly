@@ -14,7 +14,6 @@ All notable changes to Textly. Versions follow [Semantic Versioning](https://sem
 
 ### Changed
 - Result mode labels: "Replace the selected text straight away", "Show the result first", "Let me review each change".
-- Cleared shortcuts now stay cleared after restarting Textly.
 
 ## [0.4.0] - 2026-10-15
 
