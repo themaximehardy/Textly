@@ -507,6 +507,9 @@ private struct ChangeRow: View {
             removed[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] = kept ? Color.red.opacity(0.8) : Color.primary
             result += removed
         }
+        if !change.removed.isEmpty && !change.added.isEmpty {
+            result += AttributedString(" ")
+        }
         if !change.added.isEmpty {
             var added = AttributedString(change.added)
             added[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] = kept ? Color.green : Color.secondary

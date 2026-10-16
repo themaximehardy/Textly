@@ -2,6 +2,20 @@
 
 All notable changes to Textly. Versions follow [Semantic Versioning](https://semver.org): 0.x while the app is in early development.
 
+## [0.5.0] - 2026-10-16
+
+### Added
+- **Review each change**: a new result mode for any action ("Let me review each change"). Every suggestion is listed on its own row (old → new, with a few words around it); keep or drop each one with a click or the space bar, then apply only what you kept. "All" and "None" to go fast.
+- **⇧ to review once**: hold Shift when you pick an action in the palette (letter, ↵ or click) to review its changes this time, whatever its result mode.
+- **Revert**: ⌃⌥Z (or menu bar › Revert Last Change) puts your original text back after Textly replaced it. Press it again to swap back to the result. Textly selects the pasted text again when the app allows it, otherwise it presses ⌘Z for you. The shortcut can be changed or turned off in Settings › General.
+- A short "Done · ⌃⌥Z to revert" message after each replacement.
+- Each result mode is explained under the picker in Settings › Actions.
+- README: full feature list and new screenshots (review, live results, local models, setup languages, revert and recent results).
+
+### Changed
+- Result mode labels: "Replace the selected text straight away", "Show the result first", "Let me review each change".
+- Cleared shortcuts now stay cleared after restarting Textly.
+
 ## [0.4.0] - 2026-10-15
 
 ### Added
