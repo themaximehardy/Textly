@@ -96,6 +96,8 @@ private struct PreviewLayout: View {
                 PreviewBottomBar(model: model)
             }
             .frame(width: Self.paneWidth)
+            // As tall as the action list, so the buttons sit at the bottom.
+            .frame(maxHeight: .infinity, alignment: .top)
         }
         // Drawn behind, so it always matches the height of the tallest side.
         .background(alignment: .topLeading) {
