@@ -21,7 +21,8 @@ final class PalettePanel: NSPanel {
         panel.becomesKeyOnlyIfNeeded = false
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .utilityWindow
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        // Opens on the desktop (Space) you're on and stays there; also works over full-screen apps.
+        panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient]
         return panel
     }
 

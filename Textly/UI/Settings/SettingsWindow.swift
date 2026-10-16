@@ -14,7 +14,7 @@ final class SettingsWindowController {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Textly Settings"
+            window.title = "Textly Settings (version \(AppInfo.version))"
             window.isReleasedWhenClosed = false
             window.contentViewController = NSHostingController(rootView: SettingsView(store: SettingsStore.shared))
             window.setContentSize(NSSize(width: 800, height: 600))

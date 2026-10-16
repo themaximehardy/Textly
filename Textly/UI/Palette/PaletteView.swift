@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// The palette that appears next to your selection.
 /// Two layouts, chosen in Settings › General › Palette style:
@@ -27,13 +28,44 @@ struct PaletteView: View {
     }
 }
 
+// MARK: - Sizing
+
+/// The panel's size. The width is fixed per style; the height is measured from the SwiftUI content.
+/// (The hosting view inside the panel doesn't size itself, so the content is measured separately.)
+@MainActor
+enum PaletteSizing {
+    static func width(for model: PaletteModel) -> CGFloat {
+        (model.style == .preview && model.screen != .languages) ? PaletteMetrics.previewWidth : PaletteMetrics.listWidth
+    }
+
+    static func idealSize(for model: PaletteModel, fallbackHeight: CGFloat = 300) -> NSSize {
+        let width = width(for: model)
+        // 1. Ask SwiftUI for the ideal size (the content is .fixedSize, so this is its natural size).
+        var height = NSHostingController(rootView: PaletteView(model: model))
+            .sizeThatFits(in: NSSize(width: width, height: 2000)).height
+        // 2. Fallback: a stand-alone hosting view, which reports its natural size as fittingSize.
+        if height < 20 {
+            let view = NSHostingView(rootView: PaletteView(model: model))
+            view.layoutSubtreeIfNeeded()
+            height = view.fittingSize.height
+        }
+        // 3. Last resort: keep the current height rather than collapsing.
+        if height < 20 {
+            NSLog("Textly: couldn't measure the palette, keeping its size")
+            height = fallbackHeight
+        }
+        let maxHeight = (NSScreen.main?.visibleFrame.height ?? 900) - 40
+        return NSSize(width: width, height: min(ceil(height), maxHeight))
+    }
+}
+
 // MARK: - Layouts
 
 /// Fixed widths, also used by AppController to size the panel.
 enum PaletteMetrics {
     static let listWidth: CGFloat = 340
-    static let previewListWidth: CGFloat = 176
-    static let previewPaneWidth: CGFloat = 404
+    static let previewListWidth: CGFloat = 200
+    static let previewPaneWidth: CGFloat = 480
     static var previewWidth: CGFloat { previewListWidth + previewPaneWidth }
 }
 
@@ -123,7 +155,7 @@ private struct PreviewLayout: View {
                 Text(model.sourceText.trimmingCharacters(in: .whitespacesAndNewlines))
                     .font(.system(size: 14))
                     .lineSpacing(3)
-                    .lineLimit(10)
+                    .lineLimit(14)
                     .fixedSize(horizontal: false, vertical: true)
             }
         case .working(let title):
@@ -218,6 +250,9 @@ private struct PreviewBottomBar: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
+            Text("Textly \(AppInfo.version)")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
             Text("esc")
                 .font(.system(size: 11.5))
                 .foregroundStyle(.secondary)
@@ -266,6 +301,9 @@ private struct PaletteHeader: View {
             Text("Textly")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.secondary)
+            Text(AppInfo.version)
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
             Spacer()
             Text("\(model.sourceText.count) characters")
                 .font(.system(size: 11))
@@ -441,7 +479,7 @@ private struct WorkingView: View {
     let textWidth: CGFloat
 
     private var textHeight: CGFloat {
-        min(max(TextMeasure.height(partial, width: textWidth - 8), 20), 280)
+        min(max(TextMeasure.height(partial, width: textWidth - 8), 20), 360)
     }
 
     var body: some View {
@@ -486,7 +524,7 @@ private struct ResultPane: View {
     }
 
     private var textHeight: CGFloat {
-        min(max(TextMeasure.height(displayText, width: textWidth - 8), 20), 280)
+        min(max(TextMeasure.height(displayText, width: textWidth - 8), 20), 360)
     }
 
     var body: some View {

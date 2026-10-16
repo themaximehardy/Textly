@@ -73,6 +73,9 @@ struct OnboardingView: View {
                         .font(.largeTitle.bold())
                     Text("Four quick steps, then fix, improve, summarise and translate text in any app.")
                         .foregroundStyle(.secondary)
+                    Text("Version \(AppInfo.version)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
             }
 

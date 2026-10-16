@@ -134,6 +134,10 @@ final class AppController: NSObject, NSMenuDelegate {
 
     private func rebuildMenu(_ menu: NSMenu) {
         menu.removeAllItems()
+        let version = NSMenuItem(title: "Textly \(AppInfo.version)", action: nil, keyEquivalent: "")
+        version.isEnabled = false
+        menu.addItem(version)
+        menu.addItem(.separator())
         let paletteTitle = store.settings.paletteHotkey.map { "Open palette   \($0.display)" } ?? "Open palette"
         menu.addItem(menuItem(paletteTitle, #selector(menuOpenPalette)))
         menu.addItem(.separator())
@@ -684,17 +688,8 @@ final class AppController: NSObject, NSMenuDelegate {
         panel.invalidateShadow()
     }
 
-    /// The width is fixed per style; the height is measured from the SwiftUI content.
-    /// (The panel's own hosting view doesn't size itself, so it's measured separately.)
     private func idealPanelSize() -> NSSize {
-        let width = (palette.style == .preview && palette.screen != .languages)
-            ? PaletteMetrics.previewWidth
-            : PaletteMetrics.listWidth
-        let measurer = NSHostingController(rootView: PaletteView(model: palette))
-        let measured = measurer.sizeThatFits(in: NSSize(width: width, height: 2000))
-        let fallback = panel?.frame.height ?? 300
-        let height = measured.height > 20 ? min(ceil(measured.height), 900) : fallback
-        return NSSize(width: width, height: height)
+        PaletteSizing.idealSize(for: palette, fallbackHeight: panel?.frame.height ?? 300)
     }
 
     /// Below the selection when there is room, otherwise above it. Always fully on screen.
