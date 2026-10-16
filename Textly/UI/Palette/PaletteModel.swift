@@ -1,10 +1,13 @@
 import SwiftUI
+import AppKit
 
 enum PaletteScreen: Equatable {
     case menu
     case languages
     case working(String)
     case result
+    /// Each suggested change listed, to accept or reject one by one.
+    case review
     case error(String)
 }
 
@@ -78,8 +81,16 @@ final class PaletteModel: ObservableObject {
     @Published var changeCount = 0
     /// The answer so far, while it is being written.
     @Published var streamingText = ""
+    /// Review mode: the changes and which ones are kept.
+    @Published var review: ChangeReview?
+    @Published var accepted: Set<Int> = []
+    @Published var reviewHighlighted = 0
+    private var resultLead = ""
+    private var resultTrail = ""
+    private var resultOriginal = ""
 
-    var onRun: (@MainActor (PaletteItem.Kind) -> Void)?
+    /// The second value is true when the user held ⇧ (review the changes this time).
+    var onRun: (@MainActor (PaletteItem.Kind, Bool) -> Void)?
     var onRunLanguage: (@MainActor (String) -> Void)?
     var onReplace: (@MainActor () -> Void)?
     var onCopy: (@MainActor () -> Void)?
@@ -103,6 +114,8 @@ final class PaletteModel: ObservableObject {
         self.diff = nil
         self.changeCount = 0
         self.streamingText = ""
+        self.review = nil
+        self.accepted = []
         self.screen = .menu
         refreshLanguages(resetHighlight: true)
     }
@@ -119,9 +132,10 @@ final class PaletteModel: ObservableObject {
         run(items[highlighted])
     }
 
+    /// Holding ⇧ (with the letter, ↵ or a click) reviews each change instead of replacing straight away.
     func run(_ item: PaletteItem) {
         if let index = items.firstIndex(of: item) { highlighted = index }
-        onRun?(item.kind)
+        onRun?(item.kind, NSEvent.modifierFlags.contains(.shift))
     }
 
     // MARK: Languages
@@ -196,18 +210,70 @@ final class PaletteModel: ObservableObject {
         streamingText = text
     }
 
-    func showResult(title: String, full: String, core: String, original: String, showDiff: Bool) {
+    func showResult(title: String, output: RunOutput, showDiff: Bool, review wantsReview: Bool) {
         resultTitle = title
-        resultFull = full
-        resultCore = core
-        if showDiff, let segments = TextDiff.diff(original, core), TextDiff.isWorthShowing(segments) {
+        resultFull = output.full
+        resultCore = output.core
+        resultLead = output.lead
+        resultTrail = output.trail
+        resultOriginal = output.original
+        review = nil
+        accepted = []
+        if showDiff, let segments = TextDiff.diff(output.original, output.core), TextDiff.isWorthShowing(segments) {
             diff = segments
             changeCount = TextDiff.changeCount(segments)
+            if wantsReview {
+                let changes = ChangeReview(segments: segments)
+                if !changes.changes.isEmpty {
+                    review = changes
+                    accepted = changes.allIDs
+                    reviewHighlighted = 0
+                    screen = .review
+                    return
+                }
+            }
         } else {
             diff = nil
             changeCount = 0
         }
         screen = .result
+    }
+
+    // MARK: Review
+
+    /// What ↵ / Replace inserts: the whole result, or only the accepted changes when reviewing.
+    var textToInsert: String {
+        guard screen == .review, let review else { return resultFull }
+        return resultLead + review.text(accepting: accepted) + resultTrail
+    }
+
+    /// What Copy copies (without the surrounding spaces).
+    var textToCopy: String {
+        guard screen == .review, let review else { return resultCore }
+        return review.text(accepting: accepted)
+    }
+
+    func toggleChange(_ id: Int) {
+        if accepted.contains(id) {
+            accepted.remove(id)
+        } else {
+            accepted.insert(id)
+        }
+        if let index = review?.changes.firstIndex(where: { $0.id == id }) { reviewHighlighted = index }
+    }
+
+    func toggleHighlightedChange() {
+        guard let changes = review?.changes, changes.indices.contains(reviewHighlighted) else { return }
+        toggleChange(changes[reviewHighlighted].id)
+    }
+
+    func moveReview(_ delta: Int) {
+        guard let count = review?.changes.count, count > 0 else { return }
+        reviewHighlighted = (reviewHighlighted + delta + count) % count
+    }
+
+    func setAllChanges(_ on: Bool) {
+        accepted = on ? (review?.allIDs ?? []) : []
     }
 
     func showError(_ message: String) {

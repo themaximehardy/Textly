@@ -50,6 +50,9 @@ private struct ListLayout: View {
                 case .result:
                     ResultPane(model: model, textWidth: Self.width - 28)
                         .padding(14)
+                case .review:
+                    ReviewPane(model: model, textWidth: Self.width - 28)
+                        .padding(14)
                 case .error(let message):
                     ErrorPane(model: model, message: message)
                         .padding(14)
@@ -106,6 +109,8 @@ private struct PreviewLayout: View {
             WorkingView(title: title, partial: model.streamingText, textWidth: Self.paneWidth - 28)
         case .result:
             ResultPane(model: model, textWidth: Self.paneWidth - 28)
+        case .review:
+            ReviewPane(model: model, textWidth: Self.paneWidth - 28)
         case .error(let message):
             ErrorPane(model: model, message: message)
         }
@@ -404,6 +409,140 @@ private struct ResultPane: View {
     }
 }
 
+/// Each suggested change on its own row: tick the ones to keep, then apply.
+private struct ReviewPane: View {
+    @ObservedObject var model: PaletteModel
+    let textWidth: CGFloat
+
+    private var changes: [SuggestedChange] { model.review?.changes ?? [] }
+
+    private var listHeight: CGFloat {
+        let rows = changes.reduce(CGFloat(0)) { total, change in
+            total + TextMeasure.height(change.before + change.removed + change.added + change.after, width: textWidth - 44) + 10
+        }
+        return min(max(rows, 34), 260)
+    }
+
+    private var applyLabel: String {
+        let kept = model.accepted.count
+        if kept == 0 { return "Keep original" }
+        if kept == changes.count { return changes.count == 1 ? "Apply the change" : "Apply all \(kept)" }
+        return "Apply \(kept) of \(changes.count)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text(model.resultTitle)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(changes.count == 1 ? "1 suggestion" : "\(changes.count) suggestions")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Button("All") { model.setAllChanges(true) }
+                Button("None") { model.setAllChanges(false) }
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 2) {
+                        ForEach(Array(changes.enumerated()), id: \.element.id) { index, change in
+                            ChangeRow(
+                                change: change,
+                                kept: model.accepted.contains(change.id),
+                                highlighted: index == model.reviewHighlighted
+                            )
+                            .id(change.id)
+                            .onTapGesture { model.toggleChange(change.id) }
+                        }
+                    }
+                }
+                .frame(width: textWidth, height: listHeight)
+                .onChange(of: model.reviewHighlighted) { _, index in
+                    if changes.indices.contains(index) {
+                        proxy.scrollTo(changes[index].id)
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    model.onReplace?()
+                } label: {
+                    Text(applyLabel)
+                }
+                .buttonStyle(.borderedProminent)
+                Button {
+                    model.onCopy?()
+                } label: {
+                    Text("Copy")
+                }
+                Button {
+                    model.onRetry?()
+                } label: {
+                    Text("Try again")
+                }
+                Spacer(minLength: 0)
+            }
+            .controlSize(.small)
+        }
+    }
+}
+
+private struct ChangeRow: View {
+    let change: SuggestedChange
+    let kept: Bool
+    let highlighted: Bool
+
+    private var text: AttributedString {
+        var result = AttributedString(change.before)
+        result[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] = .secondary
+        if !change.removed.isEmpty {
+            var removed = AttributedString(change.removed)
+            if kept {
+                removed[AttributeScopes.SwiftUIAttributes.StrikethroughStyleAttribute.self] = Text.LineStyle(pattern: .solid)
+            }
+            removed[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] = kept ? Color.red.opacity(0.8) : Color.primary
+            result += removed
+        }
+        if !change.added.isEmpty {
+            var added = AttributedString(change.added)
+            added[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] = kept ? Color.green : Color.secondary
+            added[AttributeScopes.SwiftUIAttributes.BackgroundColorAttribute.self] = kept ? Color.green.opacity(0.14) : Color.clear
+            if !kept {
+                added[AttributeScopes.SwiftUIAttributes.StrikethroughStyleAttribute.self] = Text.LineStyle(pattern: .solid)
+            }
+            result += added
+        }
+        var after = AttributedString(change.after)
+        after[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] = .secondary
+        result += after
+        return result
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: kept ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(kept ? Color.accentColor : Color.secondary)
+                .font(.system(size: 13))
+            Text(text)
+                .font(.system(size: 13))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(highlighted ? Color.accentColor.opacity(0.12) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .help(kept ? "Click to drop this change" : "Click to keep this change")
+    }
+}
+
 private struct ErrorPane: View {
     @ObservedObject var model: PaletteModel
     let message: String
@@ -441,10 +580,11 @@ private struct FooterHints: View {
 
     private var hints: [String] {
         switch screen {
-        case .menu: return ["↵ Run", "Letter = shortcut"]
+        case .menu: return ["↵ Run", "⇧ Review each change"]
         case .languages: return ["↵ Translate", "⌘P Pin"]
         case .working: return ["Writing…"]
         case .result: return ["↵ Replace", "⌘C Copy", "⌘R Try again"]
+        case .review: return ["↵ Apply", "Space Keep or drop", "⌘C Copy"]
         case .error: return ["↵ Try again"]
         }
     }

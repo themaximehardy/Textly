@@ -116,6 +116,9 @@ struct GeneralTab: View {
                 LabeledContent("Shortcut") {
                     ShortcutRecorder(hotkey: $store.settings.paletteHotkey)
                 }
+                LabeledContent("Revert last change") {
+                    ShortcutRecorder(hotkey: $store.settings.revertHotkey)
+                }
                 Picker("Style", selection: $store.settings.paletteStyle) {
                     ForEach(PaletteStyle.allCases) { style in
                         Text(style.label).tag(style)

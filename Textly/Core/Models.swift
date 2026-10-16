@@ -25,14 +25,19 @@ extension Notification.Name {
 // MARK: - Output and palette style
 
 enum OutputMode: String, Codable, CaseIterable, Identifiable {
+    /// Swap the selection straight away.
     case replace
+    /// Show the whole result (changes highlighted) and replace on ↵.
     case show
+    /// List each suggested change to accept or reject, then apply the ones kept.
+    case review
 
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .replace: return "Replace the selected text"
+        case .replace: return "Replace the selected text straight away"
         case .show: return "Show the result first"
+        case .review: return "Let me review each change"
         }
     }
 }
@@ -174,6 +179,13 @@ struct Hotkey: Codable, Equatable, Hashable {
         keyLabel: "T"
     )
 
+    /// ⌃⌥Z puts back the text Textly last replaced.
+    static let defaultRevert = Hotkey(
+        keyCode: UInt32(kVK_ANSI_Z),
+        modifiers: NSEvent.ModifierFlags([.control, .option]).rawValue,
+        keyLabel: "Z"
+    )
+
     /// ⌃⌥F fixes the selection directly, without opening the palette.
     static let defaultFix = Hotkey(
         keyCode: UInt32(kVK_ANSI_F),
@@ -231,6 +243,8 @@ struct AppSettings: Codable, Equatable {
     var pinnedLanguages: [String]
     var recentLanguages: [String]
     var paletteHotkey: Hotkey?
+    /// Puts the original text back after Textly replaced it.
+    var revertHotkey: Hotkey?
     var paletteStyle: PaletteStyle
     var noTraining: Bool
     var fastMode: Bool
@@ -265,6 +279,7 @@ struct AppSettings: Codable, Equatable {
             pinnedLanguages: Languages.defaultPinned(),
             recentLanguages: [],
             paletteHotkey: .defaultPalette,
+            revertHotkey: .defaultRevert,
             paletteStyle: .list,
             noTraining: false,
             fastMode: true,
@@ -293,6 +308,7 @@ struct AppSettings: Codable, Equatable {
     var hotkeyBindings: [String: Hotkey] {
         var bindings: [String: Hotkey] = [:]
         if let paletteHotkey { bindings["palette"] = paletteHotkey }
+        if let revertHotkey { bindings["revert"] = revertHotkey }
         for action in actions {
             if let shortcut = action.shortcut { bindings[action.id.uuidString] = shortcut }
         }
@@ -320,7 +336,7 @@ struct AppSettings: Codable, Equatable {
 extension AppSettings {
     enum CodingKeys: String, CodingKey {
         case defaultModel, sharedRules, glossary, actions, pinnedLanguages, recentLanguages
-        case paletteHotkey, paletteStyle, noTraining, fastMode, hasCompletedOnboarding
+        case paletteHotkey, revertHotkey, paletteStyle, noTraining, fastMode, hasCompletedOnboarding
         case menuBarIcon, usesPerDay, appLogo, brandingVersion
         case provider, localBaseURL, localModel, writingProfile, keepHistory, checkForUpdates
     }
@@ -335,6 +351,8 @@ extension AppSettings {
         pinnedLanguages = try c.decodeIfPresent([String].self, forKey: .pinnedLanguages) ?? d.pinnedLanguages
         recentLanguages = try c.decodeIfPresent([String].self, forKey: .recentLanguages) ?? []
         paletteHotkey = try c.decodeIfPresent(Hotkey.self, forKey: .paletteHotkey)
+        // Missing before 0.5: turn the revert shortcut on. A saved "null" means the user cleared it.
+        revertHotkey = c.contains(.revertHotkey) ? try c.decodeIfPresent(Hotkey.self, forKey: .revertHotkey) : .defaultRevert
         paletteStyle = try c.decodeIfPresent(PaletteStyle.self, forKey: .paletteStyle) ?? d.paletteStyle
         noTraining = try c.decodeIfPresent(Bool.self, forKey: .noTraining) ?? d.noTraining
         fastMode = try c.decodeIfPresent(Bool.self, forKey: .fastMode) ?? d.fastMode
@@ -350,6 +368,33 @@ extension AppSettings {
         writingProfile = try c.decodeIfPresent(WritingProfile.self, forKey: .writingProfile) ?? .classic
         keepHistory = try c.decodeIfPresent(Bool.self, forKey: .keepHistory) ?? false
         checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? true
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(defaultModel, forKey: .defaultModel)
+        try c.encode(sharedRules, forKey: .sharedRules)
+        try c.encode(glossary, forKey: .glossary)
+        try c.encode(actions, forKey: .actions)
+        try c.encode(pinnedLanguages, forKey: .pinnedLanguages)
+        try c.encode(recentLanguages, forKey: .recentLanguages)
+        // Written even when empty (null), so a cleared shortcut stays cleared.
+        try c.encode(paletteHotkey, forKey: .paletteHotkey)
+        try c.encode(revertHotkey, forKey: .revertHotkey)
+        try c.encode(paletteStyle, forKey: .paletteStyle)
+        try c.encode(noTraining, forKey: .noTraining)
+        try c.encode(fastMode, forKey: .fastMode)
+        try c.encode(hasCompletedOnboarding, forKey: .hasCompletedOnboarding)
+        try c.encode(menuBarIcon, forKey: .menuBarIcon)
+        try c.encode(usesPerDay, forKey: .usesPerDay)
+        try c.encode(appLogo, forKey: .appLogo)
+        try c.encode(brandingVersion, forKey: .brandingVersion)
+        try c.encode(provider, forKey: .provider)
+        try c.encode(localBaseURL, forKey: .localBaseURL)
+        try c.encode(localModel, forKey: .localModel)
+        try c.encode(writingProfile, forKey: .writingProfile)
+        try c.encode(keepHistory, forKey: .keepHistory)
+        try c.encode(checkForUpdates, forKey: .checkForUpdates)
     }
 }
 

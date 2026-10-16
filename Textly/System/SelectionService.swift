@@ -11,6 +11,27 @@ struct CapturedSelection {
     let anchor: NSRect?
     /// Set when the selection is inside one of Textly's own windows (e.g. the setup window).
     let ownWindow: NSWindow?
+    /// The text field and the selection's position in it, when the app exposes them (used to revert).
+    var element: AXUIElement? = nil
+    var range: CFRange? = nil
+}
+
+/// What Textly pasted, so it can be put back (Revert, ⌃⌥Z).
+struct Replacement {
+    let app: NSRunningApplication?
+    let ownWindow: NSWindow?
+    let element: AXUIElement?
+    /// Where the pasted text starts in the text field (UTF-16 offset), when known.
+    let location: Int?
+    let inserted: String
+    let original: String
+}
+
+enum RevertOutcome {
+    /// The pasted text was selected again and the original pasted over it. Holds the reverse, to redo.
+    case restored(Replacement)
+    /// The app didn't say where the text is, so Textly pressed ⌘Z in it.
+    case undone
 }
 
 /// Reads the selected text in the frontmost app and pastes results back.
@@ -27,20 +48,27 @@ enum SelectionService {
         if !isOwnApp { AppCompatibility.prepare(app) }
 
         var anchor: NSRect?
-        if let element = focusedElement() {
-            if isSecureField(element) { return nil }
-            anchor = selectionBounds(element)
-            if let text = selectedText(element), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return CapturedSelection(text: text, app: app, anchor: anchor, ownWindow: ownWindow)
+        var element: AXUIElement?
+        var range: CFRange?
+        if let focused = focusedElement() {
+            if isSecureField(focused) { return nil }
+            element = focused
+            anchor = selectionBounds(focused)
+            range = selectedRange(focused)
+            if let text = selectedText(focused), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return CapturedSelection(text: text, app: app, anchor: anchor, ownWindow: ownWindow, element: focused, range: range)
             }
             // The app says nothing is selected. Don't fall back to ⌘C: editors like VS Code
             // would copy the whole line and Textly would paste a duplicate.
             // Browsers are the exception: web editors (Google Docs…) often report an empty selection.
-            if selectedRangeLength(element) == 0 && AppCompatibility.trustsEmptySelection(app) { return nil }
+            if range?.length == 0 && AppCompatibility.trustsEmptySelection(app) { return nil }
         }
 
         if let text = await copyViaClipboard(), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return CapturedSelection(text: text, app: app, anchor: anchor, ownWindow: ownWindow)
+            // Only trust the position if it matches what was copied.
+            let trusted = range.map { $0.length == (text as NSString).length } ?? false
+            return CapturedSelection(text: text, app: app, anchor: anchor, ownWindow: ownWindow,
+                                     element: trusted ? element : nil, range: trusted ? range : nil)
         }
         return nil
     }
@@ -49,20 +77,65 @@ enum SelectionService {
     static func selection(withText text: String) -> CapturedSelection {
         let app = NSWorkspace.shared.frontmostApplication
         let isOwnApp = app?.processIdentifier == ProcessInfo.processInfo.processIdentifier
-        let anchor = focusedElement().flatMap { selectionBounds($0) }
-        return CapturedSelection(text: text, app: app, anchor: anchor, ownWindow: isOwnApp ? NSApp.keyWindow : nil)
+        let element = focusedElement()
+        let anchor = element.flatMap { selectionBounds($0) }
+        let range = element.flatMap { selectedRange($0) }
+        let trusted = range.map { $0.length == (text as NSString).length } ?? false
+        return CapturedSelection(text: text, app: app, anchor: anchor, ownWindow: isOwnApp ? NSApp.keyWindow : nil,
+                                 element: trusted ? element : nil, range: trusted ? range : nil)
     }
 
-    static func replace(with text: String, target: CapturedSelection?) async {
+    /// Pastes `text` over the selection in the app it came from. Returns what's needed to revert it.
+    @discardableResult
+    static func replace(with text: String, target: CapturedSelection?) async -> Replacement {
+        await bringBack(app: target?.app, window: target?.ownWindow)
+        await paste(text)
+        return Replacement(
+            app: target?.app,
+            ownWindow: target?.ownWindow,
+            element: target?.element,
+            location: target?.range?.location,
+            inserted: text,
+            original: target?.text ?? ""
+        )
+    }
+
+    /// Puts the original text back. Selects the pasted text again when the app allows it, otherwise presses ⌘Z.
+    static func revert(_ replacement: Replacement) async -> RevertOutcome {
+        await bringBack(app: replacement.app, window: replacement.ownWindow)
+        if let element = replacement.element, let location = replacement.location {
+            let length = (replacement.inserted as NSString).length
+            let range = CFRange(location: location, length: length)
+            if string(in: element, range: range) == replacement.inserted, select(range, in: element) {
+                try? await Task.sleep(nanoseconds: 60_000_000)
+                await paste(replacement.original)
+                return .restored(Replacement(
+                    app: replacement.app,
+                    ownWindow: replacement.ownWindow,
+                    element: element,
+                    location: location,
+                    inserted: replacement.original,
+                    original: replacement.inserted
+                ))
+            }
+        }
+        await waitForModifiersReleased()
+        postCommandKey(CGKeyCode(kVK_ANSI_Z))
+        return .undone
+    }
+
+    private static func bringBack(app: NSRunningApplication?, window: NSWindow?) async {
         let ownPID = ProcessInfo.processInfo.processIdentifier
-        if let app = target?.app, app.processIdentifier != ownPID {
+        if let app, app.processIdentifier != ownPID {
             _ = app.activate()
             try? await Task.sleep(nanoseconds: 150_000_000)
-        } else if let window = target?.ownWindow {
+        } else if let window {
             window.makeKeyAndOrderFront(nil)
             try? await Task.sleep(nanoseconds: 80_000_000)
         }
+    }
 
+    private static func paste(_ text: String) async {
         let pasteboard = NSPasteboard.general
         let snapshot = PasteboardSnapshot(pasteboard)
         pasteboard.clearContents()
@@ -97,13 +170,37 @@ enum SelectionService {
         return value as? String
     }
 
-    private static func selectedRangeLength(_ element: AXUIElement) -> Int? {
+    private static func selectedRange(_ element: AXUIElement) -> CFRange? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &value) == .success,
               let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
         var range = CFRange(location: 0, length: 0)
         guard AXValueGetValue(value as! AXValue, .cfRange, &range) else { return nil }
-        return range.length
+        return range
+    }
+
+    /// The text at `range` in the field, if the app can tell.
+    private static func string(in element: AXUIElement, range: CFRange) -> String? {
+        var range = range
+        if let rangeValue = AXValueCreate(.cfRange, &range) {
+            var value: CFTypeRef?
+            if AXUIElementCopyParameterizedAttributeValue(element, kAXStringForRangeParameterizedAttribute as CFString, rangeValue, &value) == .success,
+               let text = value as? String {
+                return text
+            }
+        }
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &value) == .success,
+              let whole = value as? String else { return nil }
+        let nsWhole = whole as NSString
+        guard range.location >= 0, range.location + range.length <= nsWhole.length else { return nil }
+        return nsWhole.substring(with: NSRange(location: range.location, length: range.length))
+    }
+
+    private static func select(_ range: CFRange, in element: AXUIElement) -> Bool {
+        var range = range
+        guard let value = AXValueCreate(.cfRange, &range) else { return false }
+        return AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, value) == .success
     }
 
     private static func isSecureField(_ element: AXUIElement) -> Bool {

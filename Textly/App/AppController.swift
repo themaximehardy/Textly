@@ -17,7 +17,9 @@ final class AppController: NSObject, NSMenuDelegate {
     private var keyMonitor: Any?
     private var capture: CapturedSelection?
     private var currentTask: Task<Void, Never>?
-    private var lastRun: (action: TextAction, language: String?)?
+    private var lastRun: (action: TextAction, language: String?, review: Bool)?
+    /// The last text Textly pasted, so ⌃⌥Z (Revert) can put the original back.
+    private var lastReplacement: Replacement?
     /// Bumped for every run (and cancel), so late streaming updates from an old run are ignored.
     private var runID = 0
     private var relay: StreamRelay?
@@ -149,6 +151,17 @@ final class AppController: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
+        let revertTitle = "Revert Last Change" + (store.settings.revertHotkey.map { "   \($0.display)" } ?? "")
+        if lastReplacement != nil {
+            let revert = menuItem(revertTitle, #selector(menuRevert))
+            revert.image = NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: nil)
+            menu.addItem(revert)
+        } else {
+            let revert = NSMenuItem(title: revertTitle, action: nil, keyEquivalent: "")
+            revert.image = NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: nil)
+            revert.isEnabled = false
+            menu.addItem(revert)
+        }
         menu.addItem(historyMenuItem())
         menu.addItem(.separator())
         menu.addItem(menuItem("Settings…", #selector(openSettings), key: ","))
@@ -295,6 +308,11 @@ final class AppController: NSObject, NSMenuDelegate {
                 Task { await self?.openPalette() }
             }
         }
+        if let hotkey = store.settings.revertHotkey {
+            center.register(hotkey) { [weak self] in
+                Task { await self?.revertLast() }
+            }
+        }
 
         for action in store.settings.actions {
             guard let hotkey = action.shortcut else { continue }
@@ -376,7 +394,8 @@ final class AppController: NSObject, NSMenuDelegate {
 
     // MARK: - Running an action
 
-    private func execute(_ action: TextAction, language: String?) {
+    /// `review`: list each change to accept or reject (⇧ in the palette), whatever the action's setting.
+    private func execute(_ action: TextAction, language: String?, review forceReview: Bool = false) {
         guard let capture else { return }
         let settings = store.settings
         // Stop any run still in flight first, so its result can't land after this one.
@@ -391,9 +410,11 @@ final class AppController: NSObject, NSMenuDelegate {
             fail(error.localizedDescription)
             return
         }
-        let replaceDirectly = settings.paletteStyle == .list && action.output == .replace
+        let mode: OutputMode = forceReview ? .review : action.output
+        let replaceDirectly = settings.paletteStyle == .list && mode == .replace
+        let wantsReview = mode == .review
         if let language { store.noteRecent(language) }
-        lastRun = (action, language)
+        lastRun = (action, language, forceReview)
 
         if !replaceDirectly && panel?.isVisible != true {
             showPanel()
@@ -420,7 +441,7 @@ final class AppController: NSObject, NSMenuDelegate {
                 relay.stop()
                 guard let self, self.runID == id else { return }
                 HistoryStore.shared.add(title: prepared.title, original: output.original, result: output.core, appName: appName)
-                await self.finish(output: output, title: prepared.title, replaceDirectly: replaceDirectly, showDiff: prepared.showDiff)
+                await self.finish(output: output, title: prepared.title, replaceDirectly: replaceDirectly, showDiff: prepared.showDiff, review: wantsReview)
             } catch {
                 relay.stop()
                 if error is CancellationError { return }
@@ -431,7 +452,7 @@ final class AppController: NSObject, NSMenuDelegate {
         }
     }
 
-    private func finish(output: RunOutput, title: String, replaceDirectly: Bool, showDiff: Bool) async {
+    private func finish(output: RunOutput, title: String, replaceDirectly: Bool, showDiff: Bool, review: Bool) async {
         setBusy(false)
         HotkeyCenter.shared.setEscapeHandler(nil)
         currentTask = nil
@@ -439,11 +460,11 @@ final class AppController: NSObject, NSMenuDelegate {
             let target = capture
             closePalette()
             Toast.shared.hide()
-            await SelectionService.replace(with: output.full, target: target)
+            await paste(output.full, over: target)
         } else {
             Toast.shared.hide()
             if panel?.isVisible != true { showPanel() }
-            palette.showResult(title: title, full: output.full, core: output.core, original: output.original, showDiff: showDiff)
+            palette.showResult(title: title, output: output, showDiff: showDiff, review: review)
         }
     }
 
@@ -472,7 +493,7 @@ final class AppController: NSObject, NSMenuDelegate {
     // MARK: - Palette wiring
 
     private func wirePalette() {
-        palette.onRun = { [weak self] kind in self?.run(kind) }
+        palette.onRun = { [weak self] kind, review in self?.run(kind, review: review) }
         palette.onRunLanguage = { [weak self] language in self?.runTranslate(to: language) }
         palette.onReplace = { [weak self] in self?.replaceWithResult() }
         palette.onCopy = { [weak self] in self?.copyResult() }
@@ -540,10 +561,10 @@ final class AppController: NSObject, NSMenuDelegate {
         store.settings.actions.first { $0.id == id }
     }
 
-    private func run(_ kind: PaletteItem.Kind) {
+    private func run(_ kind: PaletteItem.Kind, review: Bool = false) {
         switch kind {
         case .action(let id):
-            if let action = action(id) { execute(action, language: nil) }
+            if let action = action(id) { execute(action, language: nil, review: review) }
         case .translate(let id, let language):
             if let action = action(id) { execute(action, language: language) }
         case .translateAny:
@@ -557,14 +578,55 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     private func replaceWithResult() {
-        let text = palette.resultFull
+        let text = palette.textToInsert
         let target = capture
         closePalette()
-        Task { await SelectionService.replace(with: text, target: target) }
+        Task { await self.paste(text, over: target) }
+    }
+
+    /// Pastes a result over the selection and remembers it for Revert.
+    private func paste(_ text: String, over target: CapturedSelection?) async {
+        let replacement = await SelectionService.replace(with: text, target: target)
+        guard replacement.inserted != replacement.original else { return }
+        lastReplacement = replacement
+        if let revert = store.settings.revertHotkey {
+            Toast.shared.show("Done · \(revert.display) to revert", icon: "checkmark", duration: 2.2)
+        }
+    }
+
+    // MARK: - Revert
+
+    func revertLast() async {
+        guard let last = lastReplacement else {
+            Toast.shared.show("Nothing to revert yet", icon: "arrow.uturn.backward")
+            return
+        }
+        guard Permissions.isTrusted else {
+            Toast.shared.show("Textly needs Accessibility permission", icon: "lock")
+            return
+        }
+        closePalette()
+        let outcome = await SelectionService.revert(last)
+        switch outcome {
+        case .restored(let reverse):
+            // Pressing the shortcut again swaps back to the result.
+            lastReplacement = reverse
+            Toast.shared.show("Original text back", icon: "arrow.uturn.backward", duration: 2)
+        case .undone:
+            lastReplacement = nil
+            Toast.shared.show("Undone (⌘Z)", icon: "arrow.uturn.backward", duration: 2)
+        }
+    }
+
+    @objc func menuRevert() {
+        Task {
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            await self.revertLast()
+        }
     }
 
     private func copyResult() {
-        let text = palette.resultCore
+        let text = palette.textToCopy
         closePalette()
         copyToClipboard(text)
     }
@@ -572,7 +634,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private func retry() {
         guard let last = lastRun else { return }
         let fresh = action(last.action.id) ?? last.action
-        execute(fresh, language: last.language)
+        execute(fresh, language: last.language, review: last.review)
     }
 
     private func cancelAndClose() {
@@ -707,6 +769,16 @@ final class AppController: NSObject, NSMenuDelegate {
             return false
 
         case .working:
+            return true
+
+        case .review:
+            if code == kVK_UpArrow { palette.moveReview(-1); return true }
+            if code == kVK_DownArrow { palette.moveReview(1); return true }
+            if code == kVK_Space { palette.toggleHighlightedChange(); return true }
+            if isReturn { replaceWithResult(); return true }
+            if command && characters == "c" { copyResult(); return true }
+            if command && characters == "r" { retry(); return true }
+            if palette.style == .preview && !command { return handleMenuKeys(code: code, characters: characters, flags: flags) }
             return true
 
         case .result:

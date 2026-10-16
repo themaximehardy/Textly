@@ -16,6 +16,9 @@ struct RunOutput: Sendable {
     /// The result itself.
     let core: String
     let original: String
+    /// Spaces and line breaks that surrounded the selection (kept as they were).
+    let lead: String
+    let trail: String
     let completion: CompletionResult
 }
 
@@ -81,6 +84,8 @@ enum ActionRunner {
             full: prepared.parts.lead + cleaned + prepared.parts.trail,
             core: cleaned,
             original: prepared.parts.core,
+            lead: prepared.parts.lead,
+            trail: prepared.parts.trail,
             completion: completion
         )
     }

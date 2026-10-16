@@ -179,6 +179,10 @@ struct ActionEditor: View {
                         Text(mode.label).tag(mode)
                     }
                 }
+                Text(resultHelp)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 LabeledContent("Shortcut") {
                     ShortcutRecorder(hotkey: $action.shortcut)
                 }
@@ -273,6 +277,19 @@ struct ActionEditor: View {
         .onDisappear { stopTry() }
         .sheet(isPresented: $showModelPicker) {
             ModelPickerView(selection: $action.model)
+        }
+    }
+
+    private var resultHelp: String {
+        switch action.output {
+        case .replace:
+            return "The selection is replaced as soon as the answer arrives. Hold ⇧ when you pick the action in the palette to review the changes instead, just that once."
+        case .show:
+            return "The whole result is shown first, with the changes highlighted. ↵ replaces the selection."
+        case .review:
+            return action.isTranslate || action.builtin == "summarise"
+                ? "Each change is listed so you can keep or drop it. Translations and summaries change everything, so they show the whole result instead."
+                : "Each change is listed (old → new) so you can keep or drop it one by one, then apply the ones you kept."
         }
     }
 
