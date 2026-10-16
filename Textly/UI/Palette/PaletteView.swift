@@ -29,9 +29,17 @@ struct PaletteView: View {
 
 // MARK: - Layouts
 
+/// Fixed widths, also used by AppController to size the panel.
+enum PaletteMetrics {
+    static let listWidth: CGFloat = 340
+    static let previewListWidth: CGFloat = 176
+    static let previewPaneWidth: CGFloat = 404
+    static var previewWidth: CGFloat { previewListWidth + previewPaneWidth }
+}
+
 private struct ListLayout: View {
     @ObservedObject var model: PaletteModel
-    static let width: CGFloat = 340
+    static let width: CGFloat = PaletteMetrics.listWidth
 
     var body: some View {
         VStack(spacing: 0) {
@@ -65,31 +73,41 @@ private struct ListLayout: View {
     }
 }
 
+/// Option D: actions on the left, the result on the right, buttons along the bottom.
+/// Everything has a fixed width so the panel can be sized exactly.
 private struct PreviewLayout: View {
     @ObservedObject var model: PaletteModel
-    static let listWidth: CGFloat = 190
-    static let paneWidth: CGFloat = 420
+    static let listWidth = PaletteMetrics.previewListWidth
+    static let paneWidth = PaletteMetrics.previewPaneWidth
 
     var body: some View {
-        VStack(spacing: 0) {
-            PaletteHeader(model: model)
-            Divider()
-            HStack(alignment: .top, spacing: 0) {
-                ActionList(model: model, compact: true)
-                    .padding(6)
-                    .frame(width: Self.listWidth, alignment: .top)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .background(Color.primary.opacity(0.035))
-                Divider()
+        HStack(alignment: .top, spacing: 0) {
+            PreviewActionList(model: model)
+                .padding(6)
+                .frame(width: Self.listWidth, alignment: .topLeading)
+            VStack(alignment: .leading, spacing: 0) {
                 rightPane
-                    .padding(14)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 14)
                     .frame(width: Self.paneWidth, alignment: .topLeading)
+                Spacer(minLength: 0)
+                Divider()
+                PreviewBottomBar(model: model)
             }
-            .fixedSize(horizontal: false, vertical: true)
-            Divider()
-            FooterHints(screen: model.screen)
+            .frame(width: Self.paneWidth)
         }
-        .frame(width: Self.listWidth + Self.paneWidth + 1)
+        // Drawn behind, so it always matches the height of the tallest side.
+        .background(alignment: .topLeading) {
+            HStack(spacing: 0) {
+                Color.primary.opacity(0.045)
+                    .frame(width: Self.listWidth)
+                Color.primary.opacity(0.12)
+                    .frame(width: 1)
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(width: PaletteMetrics.previewWidth, alignment: .topLeading)
     }
 
     @ViewBuilder private var rightPane: some View {
@@ -97,23 +115,140 @@ private struct PreviewLayout: View {
         case .menu, .languages:
             VStack(alignment: .leading, spacing: 8) {
                 Text("Pick an action. The result appears here before anything is replaced.")
-                    .font(.system(size: 12))
+                    .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(model.sourceText.trimmingCharacters(in: .whitespacesAndNewlines))
-                    .font(.system(size: 13))
-                    .lineLimit(8)
+                    .font(.system(size: 14))
+                    .lineSpacing(3)
+                    .lineLimit(10)
                     .fixedSize(horizontal: false, vertical: true)
             }
         case .working(let title):
-            WorkingView(title: title, partial: model.streamingText, textWidth: Self.paneWidth - 28)
+            WorkingView(title: title, partial: model.streamingText, textWidth: Self.paneWidth - 32)
         case .result:
-            ResultPane(model: model, textWidth: Self.paneWidth - 28)
+            ResultPane(model: model, textWidth: Self.paneWidth - 32, showsButtons: false)
         case .review:
-            ReviewPane(model: model, textWidth: Self.paneWidth - 28)
+            ReviewPane(model: model, textWidth: Self.paneWidth - 32, showsButtons: false)
         case .error(let message):
             ErrorPane(model: model, message: message)
         }
+    }
+}
+
+private struct PreviewActionList: View {
+    @ObservedObject var model: PaletteModel
+
+    var body: some View {
+        VStack(spacing: 1) {
+            ForEach(Array(model.items.enumerated()), id: \.element.id) { index, item in
+                if item.isCustom && index > 0 && !model.items[index - 1].isCustom {
+                    Divider()
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 3)
+                }
+                Button {
+                    model.run(item)
+                } label: {
+                    PreviewActionRow(item: item, highlighted: index == model.highlighted)
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    if hovering { model.highlighted = index }
+                }
+            }
+        }
+    }
+}
+
+private struct PreviewActionRow: View {
+    let item: PaletteItem
+    let highlighted: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: item.icon)
+                .font(.system(size: 12))
+                .frame(width: 15)
+            Text(item.title)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 4)
+            if let key = item.key {
+                Text(String(key).uppercased())
+                    .font(.system(size: 11))
+                    .foregroundStyle(highlighted ? Color.white.opacity(0.85) : Color.secondary)
+            }
+        }
+        .font(.system(size: 13))
+        .padding(.horizontal, 9)
+        .frame(height: 30)
+        .foregroundStyle(highlighted ? Color.white : Color.primary)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(highlighted ? Color.accentColor : Color.clear)
+        )
+        .contentShape(Rectangle())
+    }
+}
+
+/// Buttons with their keys, as in design D: Replace ↵ · Copy ⌘C · Try again ⌘R … esc
+private struct PreviewBottomBar: View {
+    @ObservedObject var model: PaletteModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            switch model.screen {
+            case .result, .review:
+                KeyButton(title: model.screen == .review ? "Apply" : "Replace", key: "↵", prominent: true) { model.onReplace?() }
+                KeyButton(title: "Copy", key: "⌘C") { model.onCopy?() }
+                KeyButton(title: "Try again", key: "⌘R") { model.onRetry?() }
+            case .error:
+                KeyButton(title: "Try again", key: "↵", prominent: true) { model.onRetry?() }
+                KeyButton(title: "Settings", key: "⌘,") { model.onOpenSettings?() }
+            case .working:
+                Text("Writing…")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+            case .menu, .languages:
+                Text("↵ Run   ⇧ Review each change")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            Text("esc")
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 50)
+    }
+}
+
+private struct KeyButton: View {
+    let title: String
+    let key: String
+    var prominent = false
+    let action: @MainActor () -> Void
+
+    var body: some View {
+        if prominent {
+            Button(action: action) { label }
+                .buttonStyle(.borderedProminent)
+        } else {
+            Button(action: action) { label }
+                .buttonStyle(.bordered)
+        }
+    }
+
+    private var label: some View {
+        HStack(spacing: 6) {
+            Text(title)
+            Text(key)
+                .font(.system(size: 11))
+                .opacity(0.75)
+        }
+        .padding(.horizontal, 2)
     }
 }
 
@@ -341,6 +476,7 @@ private struct WorkingView: View {
 private struct ResultPane: View {
     @ObservedObject var model: PaletteModel
     let textWidth: CGFloat
+    var showsButtons = true
 
     private var displayText: String {
         if let diff = model.diff { return TextDiff.plainText(diff) }
@@ -370,6 +506,7 @@ private struct ResultPane: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(width: textWidth, height: textHeight)
+            if showsButtons {
             HStack(spacing: 8) {
                 Button {
                     model.onReplace?()
@@ -390,6 +527,7 @@ private struct ResultPane: View {
                 Spacer(minLength: 0)
             }
             .controlSize(.small)
+            }
         }
     }
 
@@ -413,6 +551,7 @@ private struct ResultPane: View {
 private struct ReviewPane: View {
     @ObservedObject var model: PaletteModel
     let textWidth: CGFloat
+    var showsButtons = true
 
     private var changes: [SuggestedChange] { model.review?.changes ?? [] }
 
@@ -467,6 +606,7 @@ private struct ReviewPane: View {
                 }
             }
 
+            if showsButtons {
             HStack(spacing: 8) {
                 Button {
                     model.onReplace?()
@@ -487,6 +627,7 @@ private struct ReviewPane: View {
                 Spacer(minLength: 0)
             }
             .controlSize(.small)
+            }
         }
     }
 }

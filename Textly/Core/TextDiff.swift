@@ -93,7 +93,13 @@ enum TextDiff {
 
     static func attributed(_ segments: [DiffSegment]) -> AttributedString {
         var result = AttributedString()
+        var previousWasRemoved = false
         for segment in segments {
+            if case .added = segment, previousWasRemoved {
+                // "feedbak feedback" reads better than "feedbakfeedback".
+                result += AttributedString(" ")
+            }
+            if case .removed = segment { previousWasRemoved = true } else { previousWasRemoved = false }
             switch segment {
             case .same(let s):
                 result += AttributedString(s)

@@ -2,6 +2,15 @@
 
 All notable changes to Textly. Versions follow [Semantic Versioning](https://semver.org): 0.x while the app is in early development.
 
+## [0.5.1] - 2026-10-16
+
+### Fixed
+- **Preview palette style**: the panel was cut off on both sides (action names and the result were hidden). The panel is now sized exactly to its content.
+
+### Changed
+- The preview style now follows design D: actions on the left with their letter, the result on the right with the changes highlighted, and the buttons along the bottom with their keys (Replace ↵, Copy ⌘C, Try again ⌘R).
+- A space now separates the old and new words in highlighted changes.
+
 ## [0.5.0] - 2026-10-16
 
 ### Added
