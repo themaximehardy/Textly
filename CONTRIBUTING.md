@@ -17,7 +17,7 @@ If Textly can't read or replace text in an app, open a *compatibility* issue. Th
 
 ## Share actions
 
-Export your actions (Settings › Actions › share button › Export) and add the file to [`docs/packs/`](docs/packs) with a pull request. Add a line for it to `docs/packs/README.md`.
+Export your actions (Settings › Actions › Export…) and add the file to [`docs/packs/`](docs/packs) with a pull request. Add a line for it to `docs/packs/README.md`.
 
 ## Change the code
 

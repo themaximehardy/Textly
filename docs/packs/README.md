@@ -1,6 +1,6 @@
 # Action packs
 
-An action pack is a `.json` file with a few ready-made actions. Import one in **Settings › Actions**, with the share button under the list (**Import actions…**). The actions are added to yours; nothing is replaced, and you can edit or delete them afterwards.
+An action pack is a `.json` file with a few ready-made actions. Import one in **Settings › Actions**, with **Import…** under the action list. The actions are added to yours; nothing is replaced, and you can edit or delete them afterwards.
 
 | Pack | Actions |
 |---|---|
@@ -12,7 +12,7 @@ To download one, open it above and click the download button (**Download raw fil
 
 ## Share your own
 
-1. In **Settings › Actions**, use the share button › **Export my actions…** (or **Export this action…**).
+1. In **Settings › Actions**, click **Export…** under the action list › **Export all my actions…** (or just the selected one).
 2. Send the file to anyone, or add it here with a pull request so everyone can use it.
 
 Shortcuts are never exported, so importing a pack can't clash with anyone's shortcuts.
