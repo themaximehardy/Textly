@@ -45,26 +45,20 @@ struct ActionsTab: View {
                     }
                     .help("Delete action (built-in actions can't be deleted)")
                     .disabled(!canDelete)
-                    Menu {
-                        Button("Import actions…") { importPack() }
-                        Divider()
-                        Button("Export my actions…") { exportPack(onlySelected: false) }
+                    Spacer()
+                    Button("Import…") { importPack() }
+                        .help("Add actions from a file someone sent you (a Textly action pack)")
+                    Menu("Export…") {
+                        Button("Export all my actions…") { exportPack(onlySelected: false) }
                             .disabled(!store.settings.actions.contains { $0.builtin == nil })
-                        Button("Export this action…") { exportPack(onlySelected: true) }
+                        Button("Export “\(selectedAction?.name ?? "this action")”…") { exportPack(onlySelected: true) }
                             .disabled(selectedAction == nil)
                         Divider()
                         Link("Get action packs on GitHub", destination: URL(string: "\(AppInfo.homepage)/tree/main/docs/packs")!)
-                    } label: {
-                        Image(systemName: "square.and.arrow.up.on.square")
-                            .frame(width: 20, height: 20)
                     }
                     .menuIndicator(.hidden)
                     .fixedSize()
-                    .help("Share actions: import or export a pack")
-                    Spacer()
-                    Text("Drag to reorder")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    .help("Save your actions to a file to send to someone")
                 }
                 .buttonStyle(.borderless)
                 .padding(8)

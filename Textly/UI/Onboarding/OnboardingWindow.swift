@@ -123,7 +123,7 @@ struct OnboardingView: View {
                     Permissions.requestAccessibility()
                     Permissions.openAccessibilitySettings()
                 }
-                Text("Switch Textly on in the list. If it's already on and this step stays unticked, remove it with − and add it again.")
+                Text("Switch Textly on in the list. Textly restarts by itself once it's allowed. If it's already on and this step stays unticked (this happens after each update until Textly is signed by Apple), remove it with −, then add it again with +.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -20,6 +20,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private var lastRun: (action: TextAction, language: String?, review: Bool)?
     /// The last text Textly pasted, so ⌃⌥Z (Revert) can put the original back.
     private var lastReplacement: Replacement?
+    private var trustTimer: Timer?
     /// Bumped for every run (and cancel), so late streaming updates from an old run are ignored.
     private var runID = 0
     private var relay: StreamRelay?
@@ -31,6 +32,7 @@ final class AppController: NSObject, NSMenuDelegate {
     // MARK: - Start
 
     func start() {
+        AppInstaller.checkRunningCopy()
         AppLogos.apply(store.settings.appLogo)
         store.$settings
             .map(\.appLogo)
@@ -90,9 +92,28 @@ final class AppController: NSObject, NSMenuDelegate {
             }
         }
 
+        watchForAccessibility()
+
         let needsKey = store.settings.provider == .openRouter && !store.hasAPIKey
         if !store.settings.hasCompletedOnboarding || needsKey || !Permissions.isTrusted {
             OnboardingWindowController.shared.show()
+        }
+    }
+
+    /// macOS only fully applies the Accessibility permission after a restart,
+    /// so Textly restarts itself as soon as it's allowed.
+    private func watchForAccessibility() {
+        guard !Permissions.isTrusted else { return }
+        trustTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
+            MainActor.assumeIsolated {
+                guard Permissions.isTrusted else { return }
+                timer.invalidate()
+                self?.trustTimer = nil
+                Toast.shared.show("Accessibility allowed. Restarting Textly…", icon: "checkmark.circle", duration: nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    MainActor.assumeIsolated { AppInstaller.relaunch() }
+                }
+            }
         }
     }
 

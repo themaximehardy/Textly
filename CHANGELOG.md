@@ -2,6 +2,23 @@
 
 All notable changes to Textly. Versions follow [Semantic Versioning](https://semver.org): 0.x while the app is in early development.
 
+## [0.5.2] - 2026-10-16
+
+### Added
+- **Updates install themselves**: "Install and Relaunch" downloads the new version, replaces Textly and restarts it. No more dragging to Applications.
+- **Wrong copy check**: if you open an older Textly (for example one built with Xcode, or an old download) while a newer one is in Applications, Textly offers to open the newer one. "Launch at login" now always opens the copy you're using.
+- **Restart after allowing Accessibility**: macOS only fully applies the permission after a restart, so Textly now restarts by itself as soon as you allow it.
+- **Version number everywhere**: menu bar menu, palette, Settings window title and setup window.
+- **Import… and Export…** buttons under the action list (Settings › Actions), to send your actions to someone or add theirs.
+- Layout tests that measure the real palette, so a cut-off panel can't ship again.
+
+### Fixed
+- **Command list and preview palettes cut off**: the panel could keep its starting size (340 × 300) instead of fitting its content. It's now measured from the content, with two fallbacks.
+- The palette now stays on the desktop (Space) where you opened it, instead of following you to other desktops.
+
+### Changed
+- The preview palette is bigger (680 points wide) and shows more of the text.
+
 ## [0.5.1] - 2026-10-16
 
 ### Fixed

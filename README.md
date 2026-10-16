@@ -24,7 +24,7 @@ Textly lives in the menu bar and is open source. It uses [OpenRouter](https://op
 - **Summarise**: key points, decisions, figures and action items.
 - **Translate** to any language: your pinned languages get their own letter, any other is one search away ("Spanish (Mexico)", "formal German"…).
 - **Make shorter**, and **your own actions**: a name, an icon and an instruction ("Reply politely", "Turn into bullet points"…).
-- **Action packs**: export your actions to a file, import other people's. Starter packs in [docs/packs](docs/packs): Email and messages, Work, Social.
+- **Action packs**: Settings › Actions › **Export…** saves your actions to a file to send to anyone; **Import…** adds theirs. Starter packs in [docs/packs](docs/packs): Email and messages, Work, Social.
 
 <p align="center"><img src="docs/images/palette.png" alt="The palette next to selected text in an email" width="800"></p>
 
@@ -84,7 +84,8 @@ Settings › Usage shows what you've spent today, this week and this month (exac
 - A global shortcut for the palette, plus one per action (⌃⌥F fixes straight away).
 - **Right-click › Services › Textly** in apps built with Apple's text controls (Mail, Notes, Pages, Safari…).
 - Choose the logo and the menu bar icon.
-- Checks for updates once a day and offers the new version.
+- Checks for updates once a day and installs them itself (Install and Relaunch).
+- Shows its version in the menu bar menu, the palette and Settings.
 
 ### Private by design
 - Text is sent only when you trigger an action, only to the AI you chose.
@@ -102,7 +103,9 @@ Settings › Usage shows what you've spent today, this week and this month (exac
 3. Open Textly. Because it isn't notarised by Apple yet, macOS says it can't verify the app. Click **Done**, then go to **System Settings › Privacy & Security**, scroll down and click **Open Anyway**. You only need to do this once.
 4. Follow the setup window: paste your API key (or choose a local model), pick your languages, then allow Accessibility.
 
-> After installing a new version, macOS may ask for Accessibility again. If Textly stops responding to the shortcut, open System Settings › Privacy & Security › Accessibility, remove Textly with **−** and add it again.
+**Updates**: Textly checks for new versions once a day (or menu bar › Check for Updates…) and installs them itself with **Install and Relaunch**.
+
+> Until Textly is signed by Apple, macOS asks for Accessibility again after each update. If Textly stops responding to the shortcut, open System Settings › Privacy & Security › Accessibility, remove Textly with **−** and add it again with **+**. Textly restarts by itself once it's allowed.
 
 ### Build from source
 

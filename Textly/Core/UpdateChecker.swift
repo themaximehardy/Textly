@@ -132,16 +132,34 @@ final class UpdateChecker {
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
             .prefix(12)
             .joined(separator: "\n")
-        let message = "You have \(AppInfo.version). Download the new version, open it and drag Textly to Applications to replace the old one."
-            + (notes.isEmpty ? "" : "\n\n" + notes)
+        let canInstall = release.downloadURL != nil && AppInstaller.canReplaceItself
+        let how = canInstall
+            ? "Textly downloads it, replaces itself and restarts (about 10 seconds). Until Textly is signed by Apple, macOS then asks you to allow Accessibility again."
+            : "Download it, open it and drag Textly to Applications to replace this one."
+        let message = "You have \(AppInfo.version). \(how)" + (notes.isEmpty ? "" : "\n\n" + notes)
         let response = alert(
             title: "Textly \(version) is available",
             message: message,
-            buttons: ["Download", "Later", "Skip This Version"]
+            buttons: [canInstall ? "Install and Relaunch" : "Download", "Later", "Skip This Version"]
         )
         switch response {
         case .alertFirstButtonReturn:
-            NSWorkspace.shared.open(release.downloadURL ?? release.pageURL)
+            if canInstall, let dmg = release.downloadURL {
+                Task {
+                    do {
+                        try await AppInstaller.install(from: dmg, version: version)
+                    } catch {
+                        let failed = self.alert(
+                            title: "Couldn't install Textly \(version)",
+                            message: "\(error.localizedDescription)\n\nYou can download it and replace Textly in Applications yourself.",
+                            buttons: ["Download", "Cancel"]
+                        )
+                        if failed == .alertFirstButtonReturn { NSWorkspace.shared.open(dmg) }
+                    }
+                }
+            } else {
+                NSWorkspace.shared.open(release.downloadURL ?? release.pageURL)
+            }
         case .alertThirdButtonReturn:
             defaults.set(version, forKey: skippedKey)
         default:
