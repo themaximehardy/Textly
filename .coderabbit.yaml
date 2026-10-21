@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit reviews every pull request on Textly. This file overrides the settings in the CodeRabbit website.
+language: en-GB
+tone_instructions: "Be concise and concrete. Point out real bugs and risks first; skip style nitpicks the compiler or SwiftUI already handle."
+early_access: false
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!docs/images/**"
+    - "!**/*.xcassets/**"
+    - "!Textly.xcodeproj/project.xcworkspace/**"
+  path_instructions:
+    - path: "Textly/**/*.swift"
+      instructions: |
+        Textly is a macOS 14+ menu bar app in Swift 5 language mode (SwiftUI + AppKit), with no third-party dependencies.
+        Check in particular:
+        - Main-actor isolation: UI and settings code is @MainActor; callbacks from timers, notifications, NSEvent monitors and URLSession must hop to the main actor.
+        - Privacy: selected text and the API key must never be logged, written to disk (except history when the user turns it on) or sent anywhere but the AI provider the user chose. The API key lives only in the Keychain.
+        - The clipboard is borrowed to copy and paste: it must always be restored.
+        - Accessibility (AXUIElement) calls can fail or hang in other apps: check results and keep timeouts short.
+        - User-facing text is British English, short and plain, with no em dashes.
+    - path: "Textly/Core/DefaultPrompts.swift"
+      instructions: |
+        These are the prompts sent to the AI. Check they are clear, don't contradict the shared rules or the output rules in PromptBuilder.swift, and keep the user's language and tone. If a built-in prompt changes, its previous text must be added to earlierDefaults so unedited prompts are upgraded.
+    - path: "Textly/System/AppInstaller.swift"
+      instructions: |
+        Self-update code. Updates must only be installed after the signature check (same Developer Team ID), and failures must leave the current app untouched.
+    - path: "TextlyTests/**"
+      instructions: "Unit tests run in CI on macOS. They must not use the network or depend on the user's settings."
+    - path: ".github/workflows/**"
+      instructions: "Secrets (certificate, notarisation key) must never be printed or written outside $RUNNER_TEMP, and the workflow must still work without them (ad-hoc signing)."
+    - path: "docs/packs/*.json"
+      instructions: "Action packs: check the JSON matches the format in docs/packs/README.md (format, version, name, actions with name, icon, prompt, output)."
+
+chat:
+  auto_reply: true
