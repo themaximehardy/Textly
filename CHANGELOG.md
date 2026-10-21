@@ -2,6 +2,24 @@
 
 All notable changes to Textly. Versions follow [Semantic Versioning](https://semver.org): 0.x while the app is in early development.
 
+## [0.6.0] - 2026-10-21
+
+### Added
+- **Formatted results**: answers can now contain bullet and numbered lists, **bold** and headings. They're pasted as real formatting in Mail, Notes, Pages, Google Docs, Notion, Slack and other apps that accept it, as Markdown in code and Markdown editors (VS Code, Cursor, Xcode, Obsidian, Terminal…), and as clean text everywhere else. Copy keeps the formatting too. Turn it off in Settings › General › Formatting.
+- **Examples in every Try it box**: three or four longer examples per action, in French, English, Spanish and German (an email full of Franglais, meeting notes, a rambling message, a Slack message to translate…). Translation examples also set the target language.
+- **Developer ID signing and notarisation** in the release workflow, used as soon as the signing secrets are added to GitHub (see [docs/SIGNING.md](docs/SIGNING.md)).
+- **Safer updates**: the updater checks the new version's signature and only installs it if it's intact and, once Textly is Developer ID signed, from the same developer.
+
+### Changed
+- **New prompts for every built-in action**:
+  - *Fix* is stricter: only real mistakes, structure untouched, no added formatting.
+  - *Improve* keeps the length and tone, and may turn a long list-like sentence into a short list.
+  - *Summarise* opens with the main point, then lists the key points and action items, with the most important words in bold.
+  - *Translate* keeps paragraphs, lists and bold where they are.
+  - *Make shorter* aims for about half the length.
+- Prompts you never edited are upgraded to the new versions automatically. Edited prompts are left alone (Reset to default brings the new version).
+- The output rules tell the model when to use formatting, and never on short messages.
+
 ## [0.5.2] - 2026-10-16
 
 ### Added

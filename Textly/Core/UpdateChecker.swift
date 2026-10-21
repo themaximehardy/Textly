@@ -134,7 +134,8 @@ final class UpdateChecker {
             .joined(separator: "\n")
         let canInstall = release.downloadURL != nil && AppInstaller.canReplaceItself
         let how = canInstall
-            ? "Textly downloads it, replaces itself and restarts (about 10 seconds). Until Textly is signed by Apple, macOS then asks you to allow Accessibility again."
+            ? "Textly downloads it, replaces itself and restarts (about 10 seconds)."
+                + (AppInstaller.isDeveloperIDSigned ? "" : " macOS then asks you to allow Accessibility again.")
             : "Download it, open it and drag Textly to Applications to replace this one."
         let message = "You have \(AppInfo.version). \(how)" + (notes.isEmpty ? "" : "\n\n" + notes)
         let response = alert(

@@ -100,12 +100,12 @@ Settings › Usage shows what you've spent today, this week and this month (exac
 
 1. Download the latest **Textly-x.y.z.dmg** from [Releases](https://github.com/themaximehardy/textly/releases/latest).
 2. Open it and drag **Textly** to **Applications**.
-3. Open Textly. Because it isn't notarised by Apple yet, macOS says it can't verify the app. Click **Done**, then go to **System Settings › Privacy & Security**, scroll down and click **Open Anyway**. You only need to do this once.
+3. Open Textly. (Releases before 0.6 weren't notarised: if macOS says it can't verify the app, click **Done**, then **System Settings › Privacy & Security › Open Anyway**.)
 4. Follow the setup window: paste your API key (or choose a local model), pick your languages, then allow Accessibility.
 
 **Updates**: Textly checks for new versions once a day (or menu bar › Check for Updates…) and installs them itself with **Install and Relaunch**.
 
-> Until Textly is signed by Apple, macOS asks for Accessibility again after each update. If Textly stops responding to the shortcut, open System Settings › Privacy & Security › Accessibility, remove Textly with **−** and add it again with **+**. Textly restarts by itself once it's allowed.
+> Updates are only installed when they're correctly signed, by the same developer as the Textly you have. If Textly ever stops responding to the shortcut, open System Settings › Privacy & Security › Accessibility, remove Textly with **−** and add it again with **+**. Textly restarts by itself once it's allowed.
 
 ### Build from source
 
@@ -142,7 +142,7 @@ Settings are stored in `~/Library/Application Support/Textly/settings.json`. The
 
 ## Roadmap
 
-- Signed and notarised download (Apple Developer ID), then fully automatic updates and a Homebrew cask
+- Homebrew cask
 - More action packs from the community
 
 ## Contributing
@@ -151,15 +151,15 @@ Issues, app compatibility reports, action packs and pull requests are welcome. T
 
 ## Releasing
 
-1. In Xcode, Textly target › General: bump **Version** (e.g. 0.4.0) and **Build**.
+1. In Xcode, Textly target › General: bump **Version** (e.g. 0.7.0) and **Build**.
 2. Add what changed to `CHANGELOG.md` under the new version.
 3. Commit, tag and push:
    ```
-   git commit -am "Release 0.4.0"
-   git tag v0.4.0
+   git commit -am "Release 0.7.0"
+   git tag v0.7.0
    git push origin main --tags
    ```
-4. GitHub Actions builds the DMG on a Mac and publishes the release with the changelog as notes (about 5 minutes).
+4. GitHub Actions builds the DMG on a Mac, signs it with the Developer ID, has Apple notarise it and publishes the release with the changelog as notes (about 10 minutes). Signing setup: [docs/SIGNING.md](docs/SIGNING.md).
 
 ## Credits
 

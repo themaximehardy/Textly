@@ -70,6 +70,11 @@ enum AppInstaller {
         relaunch()
     }
 
+    /// True when this copy is signed with a Developer ID (then permissions survive updates).
+    static var isDeveloperIDSigned: Bool {
+        teamID(ofAppAt: Bundle.main.bundleURL) != nil
+    }
+
     /// The Apple Developer Team ID an app is signed with (nil when signed ad hoc or not signed).
     static func teamID(ofAppAt url: URL) -> String? {
         var code: SecStaticCode?
