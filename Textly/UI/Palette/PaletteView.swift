@@ -575,7 +575,13 @@ private struct ResultPane: View {
         if let diff = model.diff {
             return Text(TextDiff.attributed(diff))
         }
-        return Text(model.resultCore)
+        return Text(Self.rendered(model.resultCore))
+    }
+
+    /// Shows **bold** and *italic* from formatted answers (lists keep their "- " markers).
+    private static func rendered(_ text: String) -> AttributedString {
+        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
     }
 
     private var changeLabel: String {

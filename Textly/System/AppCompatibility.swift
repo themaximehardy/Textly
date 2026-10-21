@@ -27,6 +27,19 @@ enum AppCompatibility {
         "company.thebrowser.Browser", "com.vivaldi.Vivaldi", "com.operasoftware.Opera",
     ]
 
+    /// Code editors, terminals and Markdown editors: results are pasted as Markdown text, not formatting.
+    static let markdownBundleIDs: Set<String> = [
+        "com.microsoft.VSCode", "com.microsoft.VSCodeInsiders", "com.todesktop.230313mzl4w4u92", "com.exafunction.windsurf",
+        "dev.zed.Zed", "com.apple.dt.Xcode", "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova", "com.barebones.bbedit",
+        "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty",
+        "md.obsidian", "abnerworks.Typora", "net.shinyfrog.bear", "com.uranusjr.macdown",
+    ]
+
+    static func prefersMarkdown(_ app: NSRunningApplication?) -> Bool {
+        guard let id = app?.bundleIdentifier else { return false }
+        return markdownBundleIDs.contains(id) || id.hasPrefix("com.jetbrains.")
+    }
+
     static func isBrowser(_ app: NSRunningApplication?) -> Bool {
         guard let id = app?.bundleIdentifier else { return false }
         return browserBundleIDs.contains(id)

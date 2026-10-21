@@ -160,6 +160,7 @@ struct ActionEditor: View {
     @State private var tryStatus = ""
     @State private var tryTask: Task<Void, Never>?
     @State private var tryRunID = 0
+    @State private var exampleLabel = "Choose…"
 
     var body: some View {
         Form {
@@ -234,9 +235,24 @@ struct ActionEditor: View {
             }
 
             Section {
+                HStack {
+                    Text("Example")
+                    Spacer()
+                    Menu(exampleLabel) {
+                        ForEach(ActionExamples.examples(for: action)) { example in
+                            Button(example.label) { useExample(example) }
+                        }
+                        Divider()
+                        Button("My own text") {
+                            exampleLabel = "My own text"
+                            sample = ""
+                        }
+                    }
+                    .fixedSize()
+                }
                 TextEditor(text: $sample)
                     .font(.body)
-                    .frame(height: 64)
+                    .frame(minHeight: 120, maxHeight: 220)
                 if action.isTranslate {
                     TextField("Language", text: $tryLanguage)
                 }
@@ -255,7 +271,7 @@ struct ActionEditor: View {
                         .foregroundStyle(.secondary)
                 }
                 if !tryResult.isEmpty {
-                    Text(tryResult)
+                    Text((try? AttributedString(markdown: tryResult, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(tryResult))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -268,6 +284,11 @@ struct ActionEditor: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear {
+            if exampleLabel == "Choose…", let first = ActionExamples.examples(for: action).first {
+                useExample(first)
+            }
+        }
         .onDisappear { stopTry() }
         .sheet(isPresented: $showModelPicker) {
             ModelPickerView(selection: $action.model)
@@ -288,6 +309,14 @@ struct ActionEditor: View {
     }
 
     // MARK: Try it
+
+    private func useExample(_ example: ActionExamples.Example) {
+        exampleLabel = example.label
+        sample = example.text
+        if let language = example.targetLanguage { tryLanguage = language }
+        tryResult = ""
+        tryStatus = ""
+    }
 
     private func runTry() {
         stopTry()

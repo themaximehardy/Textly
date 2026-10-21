@@ -88,14 +88,20 @@ enum SelectionService {
     /// Pastes `text` over the selection in the app it came from. Returns what's needed to revert it.
     @discardableResult
     static func replace(with text: String, target: CapturedSelection?) async -> Replacement {
+        await replace(with: PasteContent(plain: text), target: target)
+    }
+
+    /// Same, with formatting when the content has some.
+    @discardableResult
+    static func replace(with content: PasteContent, target: CapturedSelection?) async -> Replacement {
         await bringBack(app: target?.app, window: target?.ownWindow)
-        await paste(text)
+        await paste(content)
         return Replacement(
             app: target?.app,
             ownWindow: target?.ownWindow,
             element: target?.element,
             location: target?.range?.location,
-            inserted: text,
+            inserted: content.plain,
             original: target?.text ?? ""
         )
     }
@@ -108,7 +114,7 @@ enum SelectionService {
             let range = CFRange(location: location, length: length)
             if string(in: element, range: range) == replacement.inserted, select(range, in: element) {
                 try? await Task.sleep(nanoseconds: 60_000_000)
-                await paste(replacement.original)
+                await paste(PasteContent(plain: replacement.original))
                 return .restored(Replacement(
                     app: replacement.app,
                     ownWindow: replacement.ownWindow,
@@ -135,11 +141,10 @@ enum SelectionService {
         }
     }
 
-    private static func paste(_ text: String) async {
+    private static func paste(_ content: PasteContent) async {
         let pasteboard = NSPasteboard.general
         let snapshot = PasteboardSnapshot(pasteboard)
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        content.write(to: pasteboard)
         // Ask clipboard managers to ignore this temporary entry.
         pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
         let ourChangeCount = pasteboard.changeCount

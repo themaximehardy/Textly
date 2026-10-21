@@ -214,6 +214,16 @@ struct GeneralTab: View {
             }
 
             Section {
+                Toggle("Paste lists, bold and headings as real formatting", isOn: $store.settings.richText)
+            } header: {
+                Text("Formatting")
+            } footer: {
+                Text("In Mail, Notes, Pages, Google Docs, Notion, Slack… results with lists or bold keep their formatting. Code editors and Markdown apps (VS Code, Obsidian…) always get Markdown text.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 Toggle("Keep recent results after quitting Textly", isOn: $store.settings.keepHistory)
                 HStack {
                     Text("The last \(HistoryStore.limit) results are in the menu bar › Recent Results, to copy or paste again.")

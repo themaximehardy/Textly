@@ -1,4 +1,5 @@
 import AppKit
+import Security
 import ServiceManagement
 
 /// Installs updates in place and makes sure the right copy of Textly is running.
@@ -53,12 +54,38 @@ enum AppInstaller {
         guard let bundle = Bundle(url: staged), bundle.bundleIdentifier == Bundle.main.bundleIdentifier else {
             throw InstallError(message: "The download isn't a Textly app.")
         }
+        // Safety: only install a correctly signed app, from the same developer as this one.
+        guard isValidlySigned(staged) else {
+            throw InstallError(message: "The download's signature isn't valid, so it wasn't installed.")
+        }
+        if let ourTeam = teamID(ofAppAt: URL(fileURLWithPath: Bundle.main.bundlePath)),
+           teamID(ofAppAt: staged) != ourTeam {
+            throw InstallError(message: "The download isn't signed by the same developer as this Textly, so it wasn't installed.")
+        }
         try? await run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", staged.path])
 
         let current = URL(fileURLWithPath: Bundle.main.bundlePath)
         _ = try FileManager.default.replaceItemAt(current, withItemAt: staged)
         try? FileManager.default.removeItem(at: work)
         relaunch()
+    }
+
+    /// The Apple Developer Team ID an app is signed with (nil when signed ad hoc or not signed).
+    static func teamID(ofAppAt url: URL) -> String? {
+        var code: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(url as CFURL, [], &code) == errSecSuccess, let code else { return nil }
+        var info: CFDictionary?
+        guard SecCodeCopySigningInformation(code, SecCSFlags(rawValue: UInt32(kSecCSSigningInformation)), &info) == errSecSuccess,
+              let dictionary = info as? [String: Any] else { return nil }
+        return dictionary[kSecCodeInfoTeamIdentifier as String] as? String
+    }
+
+    /// The app's signature is intact (nothing was changed after signing).
+    static func isValidlySigned(_ url: URL) -> Bool {
+        var code: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(url as CFURL, [], &code) == errSecSuccess, let code else { return false }
+        let flags = SecCSFlags(rawValue: UInt32(kSecCSCheckAllArchitectures) | UInt32(kSecCSStrictValidate) | UInt32(kSecCSCheckNestedCode))
+        return SecStaticCodeCheckValidity(code, flags, nil) == errSecSuccess
     }
 
     /// Quits and opens Textly again (this copy, or another one).

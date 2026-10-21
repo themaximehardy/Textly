@@ -276,8 +276,7 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     private func copyToClipboard(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        PasteContent.make(for: text, app: nil, richText: store.settings.richText).write(to: NSPasteboard.general)
         Toast.shared.show("Copied", icon: "doc.on.doc")
     }
 
@@ -611,7 +610,8 @@ final class AppController: NSObject, NSMenuDelegate {
 
     /// Pastes a result over the selection and remembers it for Revert.
     private func paste(_ text: String, over target: CapturedSelection?) async {
-        let replacement = await SelectionService.replace(with: text, target: target)
+        let content = PasteContent.make(for: text, app: target?.app, richText: store.settings.richText)
+        let replacement = await SelectionService.replace(with: content, target: target)
         guard replacement.inserted != replacement.original else { return }
         lastReplacement = replacement
         if let revert = store.settings.revertHotkey {

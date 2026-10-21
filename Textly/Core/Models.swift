@@ -268,6 +268,8 @@ struct AppSettings: Codable, Equatable {
     var keepHistory: Bool
     /// Look for a new version on GitHub once a day.
     var checkForUpdates: Bool
+    /// Paste lists, bold and headings as real formatting in apps that support it.
+    var richText: Bool
 
     static func defaults() -> AppSettings {
         let profile = WritingProfile.suggested()
@@ -293,7 +295,8 @@ struct AppSettings: Codable, Equatable {
             localModel: "",
             writingProfile: profile,
             keepHistory: false,
-            checkForUpdates: true
+            checkForUpdates: true,
+            richText: true
         )
     }
 
@@ -324,6 +327,17 @@ struct AppSettings: Codable, Equatable {
         if copy.defaultModel.trimmingCharacters(in: .whitespaces).isEmpty {
             copy.defaultModel = DefaultPrompts.defaultModel
         }
+        // Prompts never edited by the user follow the new defaults.
+        for index in copy.actions.indices {
+            let action = copy.actions[index]
+            let key = action.builtin ?? "shorten"
+            guard let earlier = DefaultPrompts.earlierDefaults[key],
+                  let current = DefaultPrompts.currentPrompt(for: key) else { continue }
+            let saved = action.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            if earlier.contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == saved }) {
+                copy.actions[index].prompt = current
+            }
+        }
         if copy.brandingVersion < AppLogos.brandingVersion {
             copy.menuBarIcon = MenuBarIcons.defaultIcon
             copy.appLogo = AppLogos.defaultLogo
@@ -338,7 +352,7 @@ extension AppSettings {
         case defaultModel, sharedRules, glossary, actions, pinnedLanguages, recentLanguages
         case paletteHotkey, revertHotkey, paletteStyle, noTraining, fastMode, hasCompletedOnboarding
         case menuBarIcon, usesPerDay, appLogo, brandingVersion
-        case provider, localBaseURL, localModel, writingProfile, keepHistory, checkForUpdates
+        case provider, localBaseURL, localModel, writingProfile, keepHistory, checkForUpdates, richText
     }
 
     init(from decoder: Decoder) throws {
@@ -368,6 +382,7 @@ extension AppSettings {
         writingProfile = try c.decodeIfPresent(WritingProfile.self, forKey: .writingProfile) ?? .classic
         keepHistory = try c.decodeIfPresent(Bool.self, forKey: .keepHistory) ?? false
         checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? true
+        richText = try c.decodeIfPresent(Bool.self, forKey: .richText) ?? true
     }
 
     func encode(to encoder: Encoder) throws {
@@ -395,6 +410,7 @@ extension AppSettings {
         try c.encode(writingProfile, forKey: .writingProfile)
         try c.encode(keepHistory, forKey: .keepHistory)
         try c.encode(checkForUpdates, forKey: .checkForUpdates)
+        try c.encode(richText, forKey: .richText)
     }
 }
 
